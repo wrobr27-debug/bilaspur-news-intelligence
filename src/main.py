@@ -19,12 +19,17 @@ except ImportError:
 
 
 def init_db():
-    """Initialize database, creating tables if they don't exist.
+    """Verify database connectivity.
 
-    Returns True if tables were created/verified, False if connection failed.
+    Returns True if connection succeeds, False if it fails.
+
+    Schema creation is handled by Alembic migrations (authoritative),
+    not by SQLAlchemy create_all(), to avoid schema drift between
+    models and migrations on production PostgreSQL.
     """
     try:
-        Base.metadata.create_all(bind=engine)
+        with engine.connect() as conn:
+            conn.exec_driver_sql("SELECT 1")
         return True
     except Exception as e:
         print(f"Database initialization failed: {e}")

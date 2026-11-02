@@ -26,7 +26,6 @@ class Sources(Base):
     publisher_name = Column(String(200))
     source_type = Column(
         SAEnum(
-            "source_type_enum",
             "government",
             "police",
             "newspaper",
@@ -41,17 +40,18 @@ class Sources(Base):
             "agriculture",
             "environment",
             "other",
+            name="source_type_enum",
         ),
         nullable=False,
         comment="Type: government|police|newspaper|television|youtube|social_media|education|transport|health|business|rural|agriculture|environment|other",
     )
     source_category = Column(
         SAEnum(
-            "source_category_enum",
             "city",
             "district",
             "state",
             "regional",
+            name="source_category_enum",
         ),
         nullable=False,
         comment="Category: city|district|state|regional",
@@ -68,22 +68,22 @@ class Sources(Base):
     language = Column(String(10), default="en", comment="Language code: en|hi|hi-IN")
     collection_method = Column(
         SAEnum(
-            "collection_method_enum",
             "rss",
             "atom",
             "api",
             "html",
             "manual",
+            name="collection_method_enum",
         ),
         comment="Method: rss|atom|api|html|manual",
     )
     reliability_level = Column(
         SAEnum(
-            "reliability_level_enum",
             "official",
             "established_publisher",
             "independent",
             "unverified",
+            name="reliability_level_enum",
         ),
         comment="Official|established_publisher|independent|unverified",
     )
@@ -147,22 +147,22 @@ class CollectedItems(Base):
     language = Column(String(10), default="en", comment="Language code")
     item_type = Column(
         SAEnum(
-            "item_type_enum",
             "article",
             "video",
             "announcement",
             "event",
+            name="item_type_enum",
         ),
         default="article",
         comment="article|video|announcement|event",
     )
     media_type = Column(
         SAEnum(
-            "media_type_enum",
             "image",
             "video",
             "text",
             "audio",
+            name="media_type_enum",
         ),
         default="image",
         comment="image|video|text|audio",
