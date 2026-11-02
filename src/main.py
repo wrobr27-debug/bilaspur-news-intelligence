@@ -44,11 +44,20 @@ def run_collect():
     
     db = get_session()
     try:
+        # Initialize source registry if empty
+        total_sources = len(SourceRegistry.list_sources(db, active_only=False))
+        if total_sources == 0:
+            print("ERROR: No sources registered in the database.")
+            print("Run 'python -m src.main seed' to initialize the source registry.")
+            sys.exit(1)
+        
         # Identify sources due for collection
         due_sources = SourceRegistry.identify_sources_due(db)
         
         if not due_sources:
+            active_count = len(SourceRegistry.list_sources(db, active_only=True))
             print("No sources due for collection at this time.")
+            print(f"Total sources: {total_sources}, Active sources: {active_count}, Due sources: 0")
             return
 
         print(f"Collecting from {len(due_sources)} sources due...")

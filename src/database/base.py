@@ -1,5 +1,5 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import declarative_base, Session
+from sqlalchemy.orm import declarative_base, Session, sessionmaker
 
 # Import settings
 from src.config import settings
@@ -15,9 +15,10 @@ engine = create_engine(
 
 Base = declarative_base()
 
+# Session factory - exported at module level for use by seed scripts and other modules
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+
 
 def get_session() -> Session:
     """Get a new database session."""
-    from sqlalchemy.orm import sessionmaker
-    SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
     return SessionLocal()

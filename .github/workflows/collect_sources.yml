@@ -73,6 +73,9 @@ jobs:
           print(f'All required tables present: {sorted(tables)}')
           "
 
+      - name: Initialize source registry
+        run: python -m src.main seed
+
       - name: Execute collection pipeline
         run: |
           if [ -n "${{ inputs.source_id }}" ]; then
