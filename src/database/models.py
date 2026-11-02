@@ -11,6 +11,7 @@ from sqlalchemy import (
     ForeignKey,
 )
 from sqlalchemy.orm import relationship
+from sqlalchemy import Enum as SAEnum
 from src.database.base import Base
 
 
@@ -24,12 +25,34 @@ class Sources(Base):
     source_name = Column(String(200), nullable=False)
     publisher_name = Column(String(200))
     source_type = Column(
-        String(50),
+        SAEnum(
+            "source_type_enum",
+            "government",
+            "police",
+            "newspaper",
+            "television",
+            "youtube",
+            "social_media",
+            "education",
+            "transport",
+            "health",
+            "business",
+            "rural",
+            "agriculture",
+            "environment",
+            "other",
+        ),
         nullable=False,
         comment="Type: government|police|newspaper|television|youtube|social_media|education|transport|health|business|rural|agriculture|environment|other",
     )
     source_category = Column(
-        String(50),
+        SAEnum(
+            "source_category_enum",
+            "city",
+            "district",
+            "state",
+            "regional",
+        ),
         nullable=False,
         comment="Category: city|district|state|regional",
     )
@@ -44,11 +67,24 @@ class Sources(Base):
     )
     language = Column(String(10), default="en", comment="Language code: en|hi|hi-IN")
     collection_method = Column(
-        String(20),
+        SAEnum(
+            "collection_method_enum",
+            "rss",
+            "atom",
+            "api",
+            "html",
+            "manual",
+        ),
         comment="Method: rss|atom|api|html|manual",
     )
     reliability_level = Column(
-        String(20),
+        SAEnum(
+            "reliability_level_enum",
+            "official",
+            "established_publisher",
+            "independent",
+            "unverified",
+        ),
         comment="Official|established_publisher|independent|unverified",
     )
     active = Column(Boolean, default=True)
@@ -109,8 +145,28 @@ class CollectedItems(Base):
     discovered_at = Column(DateTime(timezone=True), server_default=func.now())
     collected_at = Column(DateTime(timezone=True), server_default=func.now())
     language = Column(String(10), default="en", comment="Language code")
-    item_type = Column(String(30), default="article", comment="article|video|announcement|event")
-    media_type = Column(String(30), default="image", comment="image|video|text|audio")
+    item_type = Column(
+        SAEnum(
+            "item_type_enum",
+            "article",
+            "video",
+            "announcement",
+            "event",
+        ),
+        default="article",
+        comment="article|video|announcement|event",
+    )
+    media_type = Column(
+        SAEnum(
+            "media_type_enum",
+            "image",
+            "video",
+            "text",
+            "audio",
+        ),
+        default="image",
+        comment="image|video|text|audio",
+    )
     image_url = Column(String(500), comment="Featured image URL")
     video_url = Column(String(500), comment="Video URL (YouTube/Facebook/etc.)")
     raw_metadata = Column(JSON, comment="Full metadata as JSON")
@@ -123,7 +179,6 @@ class CollectedItems(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
-        Index("ix_collected_items_source_id", "source_id"),
         Index("ix_collected_items_content_hash", "content_hash"),
         Index("ix_collected_items_published_at", "published_at"),
     )

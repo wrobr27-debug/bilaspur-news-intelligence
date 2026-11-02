@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# Environment variables
+.env
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Data directory
+data/
+
+# Logs
+logs/
+
+# Alembic environment
+ alembic/
+
+# UTF Bytes
+.fasta

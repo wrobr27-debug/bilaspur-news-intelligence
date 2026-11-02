@@ -1,5 +1,6 @@
 from sqlalchemy.orm import Session
 from src.database.models import Sources, CollectedItems, CollectionRuns, SourceHealth
+from datetime import datetime, timezone
 
 
 class SourceRegistry:
@@ -104,7 +105,7 @@ class SourceRegistry:
                 Sources.next_collection_at.is_(None)
                 | Sources.next_collection_at <= now
             )
-            .order(Sources.collection_interval_minutes)
+            .order_by(Sources.collection_interval_minutes)
             .all()
         )
 

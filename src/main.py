@@ -1,12 +1,11 @@
 import sys
 import argparse
-import uvicorn
-from pathlib import Path
+# uvicorn import lazy-loaded for web server\nfrom pathlib import Path
 from src.database.base import get_session, engine, Base
 from src.registry.source_registry import SourceRegistry
-from src.collectors.rss_collector import RSSCollector
-from src.collectors.website_collector import WebsiteCollector, GovtWebsiteCollector
-from src.collectors.youtube_collector import YouTubeCollector
+from src.collectors.rss import RSSCollector
+from src.collectors.website import WebsiteCollector, GovtWebsiteCollector
+from src.collectors.youtube import YouTubeCollector
 from src.config import settings
 from src.database.models import Sources, CollectedItems, CollectionRuns, SourceHealth
 
@@ -26,8 +25,11 @@ def init_db():
 
 def run_collect():
     """Run collection due sources."""
-    from src.database.base import SessionLocal
-    db = SessionLocal()
+    from src.database.base import get_session
+    from src.collectors.factory import get_collector
+    from src.database.models import CollectedItems
+    
+    db = get_session()
     try:
         # Identify sources due for collection
         due_sources = SourceRegistry.identify_sources_due(db)
@@ -37,9 +39,6 @@ def run_collect():
             return
 
         print(f"Collecting from {len(due_sources)} sources due...")
-        
-        from src.collectors.base_collector import BaseCollector
-        from src.database.models import CollectedItems
         
         total_items_found = 0
         total_items_inserted = 0
@@ -88,8 +87,9 @@ def run_collect():
 
 def run_collect_source(source_id: str):
     """Collect a specific source by ID."""
-    from src.database.base import SessionLocal
-    db = SessionLocal()
+    from src.database.base import get_session
+    from src.collectors.factory import get_collector
+    db = get_session()
     try:
         source = SourceRegistry.get_source(db, source_id)
         if not source:
@@ -100,7 +100,7 @@ def run_collect_source(source_id: str):
         print(f"Type: {source.source_type}, Method: {source.collection_method}")
         
         # Determine collector
-        collector = BaseCollector.get_collector(source, db)
+        collector = get_collector(source, db)
         if not collector:
             print(f"No collector for type: {source.source_type}")
             return
@@ -124,8 +124,8 @@ def run_collect_source(source_id: str):
 
 def list_sources(source_id: str = None):
     """List all sources or a specific source."""
-    from src.database.base import SessionLocal
-    db = SessionLocal()
+    from src.database.base import get_session
+    db = get_session()
     try:
         if source_id:
             source = SourceRegistry.get_source(db, source_id)
@@ -171,8 +171,8 @@ def print_source(source: Sources):
 
 def sources_check():
     """Check source health status."""
-    from src.database.base import SessionLocal
-    db = SessionLocal()
+    from src.database.base import get_session
+    db = get_session()
     try:
         sources = SourceRegistry.list_sources(db, active_only=True)
         print(f"\n{'Source':<30} {'Status':<15} {'Last checked':<20} {'Failures':<10} {'Next collection'}")
@@ -186,9 +186,9 @@ def sources_check():
 
 def run_health():
     """Run health check on all sources."""
-    from src.database.base import SessionLocal
+    from src.database.base import get_session
     from src.registry.source_registry import SourceRegistry
-    db = SessionLocal()
+    db = get_session()
     try:
         due = SourceRegistry.identify_sources_due(db)
         print(f"Checking health for {len(due)} due sources...")
@@ -238,6 +238,9 @@ def main():
     seed_parser = subparsers.add_parser("seed", help="Seed initial sources")
     seed_parser.add_argument("--force", action="store_true", help="Force reseeding")
     
+    # Check config command
+    check_parser = subparsers.add_parser("check-config", help="Validate deployment configuration")
+    
     args = parser.parse_args()
     
     init_db()
@@ -258,6 +261,32 @@ def main():
     elif args.command == "seed":
         from scripts.seed_sources import seed_initial_sources
         seed_initial_sources(force=args.force)
+    elif args.command == "check-config":
+        # Validate configuration without exposing secrets
+        from src.config import settings
+        from src.database.base import engine
+        import json
+        
+        print("=== Configuration Validation ===")
+        print(f"Database URL: {settings.database_url}")
+        
+        # Test URL normalization
+        url = settings.database_url
+        if url.startswith("postgresql://") and "+psycopg" not in url:
+            normalized = url.replace("postgresql://", "postgresql+psycopg://", 1)
+            print(f"Normalized URL: {normalized}")
+        else:
+            print(f"URL is already normalized or SQLite: {url}")
+        
+        # Test engine connection
+        try:
+            with engine.connect() as conn:
+                result = conn.exec_driver_sql("SELECT 1")
+                print(f"Database connection: OK (SQLite)")
+        except Exception as e:
+            print(f"Database connection: Failed - {e}")
+        
+        print("Configuration validation complete.")
     else:
         parser.print_help()
 

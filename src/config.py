@@ -1,7 +1,20 @@
 import os
 from pathlib import Path
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, ConfigDict, validator
+
+
+def normalize_database_url(url: str) -> str:
+    """Normalize PostgreSQL URL for SQLAlchemy Psycopg 3 compatibility.
+
+    Converts postgresql:// URLs to postgresql+psycopg:// URLs.
+    Preserves existing query parameters (like sslmode=require for Neon).
+    """
+    if url.startswith("postgresql://") and "+psycopg" not in url:
+        # Replace postgresql:// with postgresql+psycopg://
+        normalized = url.replace("postgresql://", "postgresql+psycopg://", 1)
+        return normalized
+    return url
 
 
 class Settings(BaseSettings):
@@ -40,6 +53,10 @@ class Settings(BaseSettings):
     # Retry settings
     max_retries: int = Field(default=3, alias="MAX_RETRIES")
     backoff_factor: float = Field(default=2.0, alias="BACKOFF_FACTOR")
+
+    @validator("database_url", pre=True)
+    def normalize_database_url(cls, v):
+        return normalize_database_url(v)
 
     class Config:
         env_prefix = "BILASUR_"

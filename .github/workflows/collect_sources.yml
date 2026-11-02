@@ -18,9 +18,17 @@ jobs:
     timeout-minutes: 30
 
     permissions:
-      contents: write
-      # Only write permissions needed for committing database updates
-      # Avoid pulling secrets from cache
+      contents: read
+
+    concurrency:
+      group: bilaspur-source-collection
+      cancel-in-progress: false
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      LOG_LEVEL: INFO
+      COLLECTION_TIMEZONE: Asia/Kolkata
 
     steps:
       - name: Checkout repository
@@ -33,49 +41,32 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-          cache: 'pip'
+          cache: pip
 
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install -e .
-          pip install httpx beautifulsoup4 lxml feedparser google-api-python-client openai pydantic python-dotenv feedparser fastapi uvicorn apscheduler yt-dlp
 
-      - name: Install Playwright browsers (if needed)
-        run: |
-          playwright install chromium --with-deps
-
-      - name: Set up environment variables
-        run: |
-          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
-          echo "YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}" >> .env
-          # Note: Instagram credentials NOT stored - use public mirrors only
-        env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+      - name: Validate deployment configuration
+        run: python -m src.main check-config
 
       - name: Run database migrations
-        run: |
-          cd src
-          ALEMBIC_CONFIG=migrations/alembic.ini alembic upgrade head
+        run: python -m alembic -c src/migrations/alembic.ini upgrade head
 
       - name: Execute collection pipeline
-        env:
-          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
-          LOG_LEVEL: INFO
         run: |
-          cd src
-          # Run the collection pipeline
-          python -m main collect
+          if [ -n "${{ inputs.source_id }}" ]; then
+            python -m src.main collect --source "${{ inputs.source_id }}"
+          else
+            python -m src.main collect
+          fi
 
-      - name: Save collection run metadata
-        run: |
-          echo "Run completed: $(date)" >> run-metadata.txt
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - name: Upload execution log
+        if: always()
+        uses: actions/upload-artifact@v4
         with:
-          name: collection-logs
-          path: run-metadata.txt
+          name: collection-logs-${{ github.run_id }}
+          path: logs/
+          if-no-files-found: ignore
+          retention-days: 7
