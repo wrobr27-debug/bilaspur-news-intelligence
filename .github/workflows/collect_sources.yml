@@ -54,6 +54,25 @@ jobs:
       - name: Run database migrations
         run: python -m alembic -c src/migrations/alembic.ini upgrade head
 
+      - name: Verify required tables exist
+        run: |
+          python -c "
+          from sqlalchemy import create_engine, inspect
+          import os
+          url = os.environ.get('DATABASE_URL', 'sqlite:///./data/bilaspur_news.db')
+          if url.startswith('postgresql://') and '+psycopg' not in url:
+              url = url.replace('postgresql://', 'postgresql+psycopg://', 1)
+          engine = create_engine(url, poolclass=None)
+          inspector = inspect(engine)
+          tables = inspector.get_table_names()
+          required = {'sources', 'collected_items', 'collection_runs', 'source_health', 'alembic_version'}
+          missing = required - set(tables)
+          if missing:
+              print(f'MISSING TABLES: {missing}')
+              exit(1)
+          print(f'All required tables present: {sorted(tables)}')
+          "
+
       - name: Execute collection pipeline
         run: |
           if [ -n "${{ inputs.source_id }}" ]; then

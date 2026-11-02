@@ -63,7 +63,7 @@ def run_collect():
             print(f"\n--- Collecting: {source.source_name} ({source.source_type}) ---")
             
             # Determine which collector to use
-            collector = BaseCollector.get_collector(source, db)
+            collector = get_collector(source, db)
             if not collector:
                 print(f"  No collector available for type: {source.source_type}")
                 continue
@@ -85,6 +85,11 @@ def run_collect():
             time.sleep(1)
         
         print(f"\n=== Collection Summary ===")
+        print(f"Database dialect: {engine.dialect.name}")
+        print(f"Total sources: {len(SourceRegistry.list_sources(db, active_only=False))}")
+        active_sources = SourceRegistry.list_sources(db, active_only=True)
+        print(f"Active sources: {len(active_sources)}")
+        print(f"Due sources: {len(due_sources)}")
         print(f"Sources processed: {sources_processed}")
         print(f"Total items found: {total_items_found}")
         print(f"Total items inserted: {total_items_inserted}")
@@ -94,6 +99,7 @@ def run_collect():
         print(f"Collection error: {e}")
         import traceback
         traceback.print_exc()
+        sys.exit(1)
     finally:
         db.close()
 
@@ -131,6 +137,7 @@ def run_collect_source(source_id: str):
         print(f"Error: {e}")
         import traceback
         traceback.print_exc()
+        sys.exit(1)
     finally:
         db.close()
 
@@ -296,8 +303,9 @@ def main():
         # Test engine connection
         try:
             with engine.connect() as conn:
-                result = conn.exec_driver_sql("SELECT 1")
-                print(f"Database connection: OK (SQLite)")
+                dialect = conn.dialect.name
+                conn.exec_driver_sql("SELECT 1")
+                print(f"Database connection: OK ({dialect})")
         except Exception as e:
             print(f"Database connection: Failed - {e}")
             sys.exit(1)

@@ -2,7 +2,7 @@ import sys
 import os
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import create_engine, pool
 
 # Add the src directory to the path so we can import models
 # __file__ is src/migrations/env.py, so dirname gives src/migrations
@@ -17,9 +17,19 @@ target_metadata = Base.metadata
 
 def get_url():
     """Get database URL, normalizing for Psycopg 3 + Neon compatibility."""
-    url = os.environ.get("DATABASE_URL") or context.get_x_argument().get("db_url")
+    url = os.environ.get("DATABASE_URL")
     if not url:
-        raise Exception("No database URL found for migrations")
+        x_args = context.get_x_argument()
+        if x_args and isinstance(x_args, list):
+            for arg in x_args:
+                if arg.startswith("db_url="):
+                    url = arg.split("=", 1)[1]
+                    break
+    if not url:
+        # Fall back to default SQLite URL from config
+        from src.config import Settings
+        s = Settings()
+        url = s.database_url
     # Normalize postgresql:// to postgresql+psycopg:// for SQLAlchemy 2.0 + Psycopg 3
     if url.startswith("postgresql://") and "+psycopg" not in url:
         url = url.replace("postgresql://", "postgresql+psycopg://", 1)
@@ -37,12 +47,17 @@ def run_migrations_offline():
 def run_migrations_online():
     """Run migrations in 'online mode'."""
     url = get_url()
-    connectable = engine_from_config(
-        context.get_configuration().get_section(config_ini_section="alembic"),
-        prefix="sqlalchemy.",
+    connectable = create_engine(
+        url,
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
             context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
