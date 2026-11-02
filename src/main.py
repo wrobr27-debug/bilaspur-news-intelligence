@@ -19,8 +19,16 @@ except ImportError:
 
 
 def init_db():
-    """Initialize database, creating tables if they don't exist."""
-    Base.metadata.create_all(bind=engine)
+    """Initialize database, creating tables if they don't exist.
+
+    Returns True if tables were created/verified, False if connection failed.
+    """
+    try:
+        Base.metadata.create_all(bind=engine)
+        return True
+    except Exception as e:
+        print(f"Database initialization failed: {e}")
+        return False
 
 
 def run_collect():
@@ -243,7 +251,9 @@ def main():
     
     args = parser.parse_args()
     
-    init_db()
+    if not init_db():
+        print("Cannot proceed without database connection.")
+        sys.exit(1)
     
     if args.command == "collect":
         if args.source:
@@ -285,6 +295,7 @@ def main():
                 print(f"Database connection: OK (SQLite)")
         except Exception as e:
             print(f"Database connection: Failed - {e}")
+            sys.exit(1)
         
         print("Configuration validation complete.")
     else:
