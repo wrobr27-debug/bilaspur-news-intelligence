@@ -56,6 +56,9 @@ class Settings(BaseSettings):
 
     @validator("database_url", pre=True)
     def normalize_database_url(cls, v):
+        if not v or not v.strip():
+            # Empty DATABASE_URL (e.g., unset GitHub secret) falls back to SQLite default
+            return "sqlite:///./data/bilaspur_news.db"
         return normalize_database_url(v)
 
     class Config:

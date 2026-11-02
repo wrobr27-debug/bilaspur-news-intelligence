@@ -51,7 +51,8 @@ jobs:
       - name: Validate deployment configuration
         run: python -m src.main check-config
 
-      - name: Run database migrations
+      - name: Run database migrations (PostgreSQL only)
+        if: startsWith(env.DATABASE_URL, 'postgresql')
         run: python -m alembic -c src/migrations/alembic.ini upgrade head
 
       - name: Execute collection pipeline

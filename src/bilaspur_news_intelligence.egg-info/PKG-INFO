@@ -17,3 +17,4 @@ Requires-Dist: fastapi>=0.111
 Requires-Dist: uvicorn>=0.29
 Requires-Dist: apscheduler>=3.10
 Requires-Dist: python-dateutil>=2.9
+Requires-Dist: psycopg[binary]>=3.0

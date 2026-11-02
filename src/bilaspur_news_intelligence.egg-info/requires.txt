@@ -12,3 +12,4 @@ fastapi>=0.111
 uvicorn>=0.29
 apscheduler>=3.10
 python-dateutil>=2.9
+psycopg[binary]>=3.0

@@ -9,10 +9,11 @@ src/bilaspur_news_intelligence.egg-info/entry_points.txt
 src/bilaspur_news_intelligence.egg-info/requires.txt
 src/bilaspur_news_intelligence.egg-info/top_level.txt
 src/collectors/__init__.py
-src/collectors/base_collector.py
-src/collectors/rss_collector.py
-src/collectors/website_collector.py
-src/collectors/youtube_collector.py
+src/collectors/base.py
+src/collectors/factory.py
+src/collectors/rss.py
+src/collectors/website.py
+src/collectors/youtube.py
 src/database/__init__.py
 src/database/base.py
 src/database/models.py
