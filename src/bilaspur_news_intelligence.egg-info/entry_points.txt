@@ -1,0 +1,6 @@
+[console_scripts]
+collect = src.main:run_cli
+collect-source = src.main:run_collect_source
+health = src.main:run_health
+list-sources = src.main:list_sources
+sources-check = src.main:check_sources

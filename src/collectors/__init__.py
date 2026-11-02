@@ -1,0 +1,1 @@
+"""Collectors module for Bilaspur News Intelligence."""

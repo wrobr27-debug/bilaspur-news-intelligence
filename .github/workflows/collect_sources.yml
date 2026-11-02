@@ -1,0 +1,81 @@
+name: Collect Sources
+
+on:
+  schedule:
+    # Run every 15 minutes - configurable per source in database
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+    # Allow manual trigger from Actions tab
+    inputs:
+      source_id:
+        description: 'Collect specific source ID (optional)'
+        required: false
+        default: ''
+
+jobs:
+  collect-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    permissions:
+      contents: write
+      # Only write permissions needed for committing database updates
+      # Avoid pulling secrets from cache
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          # Do NOT persist credentials - we use GitHub Secrets only
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install httpx beautifulsoup4 lxml feedparser google-api-python-client openai pydantic python-dotenv feedparser fastapi uvicorn apscheduler yt-dlp
+
+      - name: Install Playwright browsers (if needed)
+        run: |
+          playwright install chromium --with-deps
+
+      - name: Set up environment variables
+        run: |
+          echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" >> .env
+          echo "YOUTUBE_API_KEY=${{ secrets.YOUTUBE_API_KEY }}" >> .env
+          # Note: Instagram credentials NOT stored - use public mirrors only
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+
+      - name: Run database migrations
+        run: |
+          cd src
+          ALEMBIC_CONFIG=migrations/alembic.ini alembic upgrade head
+
+      - name: Execute collection pipeline
+        env:
+          OPENCODE_API_KEY: ${{ secrets.OPENCODE_API_KEY }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          YOUTUBE_API_KEY: ${{ secrets.YOUTUBE_API_KEY }}
+          LOG_LEVEL: INFO
+        run: |
+          cd src
+          # Run the collection pipeline
+          python -m main collect
+
+      - name: Save collection run metadata
+        run: |
+          echo "Run completed: $(date)" >> run-metadata.txt
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: collection-logs
+          path: run-metadata.txt

@@ -1,0 +1,1 @@
+"""Registry module for Bilaspur News Intelligence."""
