@@ -81,11 +81,14 @@ class BaseCollector(ABC):
         for attempt in range(self.max_retries):
             try:
                 start_time = time.time()
+                timeout_config = httpx.Timeout(
+                    connect=self.connect_timeout,
+                    read=self.timeout,
+                )
                 response = httpx.get(
                     url,
                     params=params,
-                    timeout=self.timeout,
-                    connect_timeout=self.connect_timeout,
+                    timeout=timeout_config,
                     headers={
                         "User-Agent": "BilaspurNewsIntelligence/0.1 "
                         "(+https://github.com/wrobr27-debug/News-Agent)"

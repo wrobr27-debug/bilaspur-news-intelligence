@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy import or_
 from src.database.models import Sources, CollectedItems, CollectionRuns, SourceHealth
 from datetime import datetime, timezone
 
@@ -34,6 +35,10 @@ class SourceRegistry:
     ) -> Sources:
         """Add a new source to the registry."""
         from datetime import datetime, timezone
+        now = datetime.now(timezone.utc)
+        # Inactive sources should not have a scheduling timestamp
+        # until they are activated and verified for collection.
+        next_collection = now if active else None
         db_source = Sources(
             source_id=source_id,
             source_name=source_name,
@@ -51,9 +56,9 @@ class SourceRegistry:
             reliability_level=reliability_level,
             active=active,
             collection_interval_minutes=collection_interval_minutes,
-            last_checked_at=datetime.now(timezone.utc),
+            last_checked_at=now,
             last_success_at=None,
-            next_collection_at=datetime.now(timezone.utc),
+            next_collection_at=next_collection,
             last_http_status=None,
             consecutive_failures=0,
             collection_status="pending",
@@ -102,8 +107,10 @@ class SourceRegistry:
             db.query(Sources)
             .filter(Sources.active == True)
             .filter(
-                Sources.next_collection_at.is_(None)
-                | Sources.next_collection_at <= now
+                or_(
+                    Sources.next_collection_at.is_(None),
+                    Sources.next_collection_at <= now,
+                )
             )
             .order_by(Sources.collection_interval_minutes)
             .all()
@@ -112,10 +119,12 @@ class SourceRegistry:
     @staticmethod
     def enable_source(db: Session, source_id: str) -> Sources | None:
         """Enable a source."""
+        from datetime import datetime, timezone
         db_source = SourceRegistry.get_source(db, source_id)
         if db_source:
             db_source.active = True
             db_source.collection_status = "pending"
+            db_source.next_collection_at = datetime.now(timezone.utc)
             db.commit()
             db.refresh(db_source)
         return db_source
