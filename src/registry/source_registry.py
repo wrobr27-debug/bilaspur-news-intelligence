@@ -213,13 +213,16 @@ class SourceRegistry:
     def identify_sources_due(db: Session) -> list[Sources]:
         """Identify sources that are due for collection based on intervals."""
         from src.database.models import Sources
+        from sqlalchemy import or_
         now = datetime.now(timezone.utc)
         return (
             db.query(Sources)
             .filter(Sources.active == True)
             .filter(
-                Sources.next_collection_at.is_(None)
-                | Sources.next_collection_at <= now
+                or_(
+                    Sources.next_collection_at.is_(None),
+                    Sources.next_collection_at <= now,
+                )
             )
             .all()
         )
