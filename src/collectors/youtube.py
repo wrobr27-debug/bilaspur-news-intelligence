@@ -241,8 +241,9 @@ class YouTubeCollector(BaseCollector):
 
         # Try api_url first
         if self.source.api_url:
-            ids = [str(self.source.api_url)].strip()
-            channel_ids.extend([i.strip() for i in ids if i.strip()])
+            api_url = str(self.source.api_url).strip()
+            if api_url:
+                channel_ids.append(api_url)
 
         # Try source_url for known channel patterns
         if self.source.source_url and "youtube.com" in self.source.source_url:
