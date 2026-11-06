@@ -121,13 +121,13 @@ body {
     height: 100vh;
     overflow-y: auto;
     z-index: 1000;
-    transform: translateX(-100%);
+    transform: translateX(-100%) !important;
     transition: transform 0.3s ease;
     box-shadow: 4px 0 12px rgba(0, 0, 0, 0.1);
 }
 
 .category-nav.open {
-    transform: translateX(0);
+    transform: translateX(0) !important;
 }
 
 .category-nav .container {
@@ -220,8 +220,8 @@ body {
 }
 
 .nav-overlay.show {
-    opacity: 1;
-    visibility: visible;
+    opacity: 1 !important;
+    visibility: visible !important;
 }
 
 /* Hamburger Toggle Button */
@@ -234,10 +234,22 @@ body {
     padding: 0.5rem;
     border-radius: 4px;
     transition: var(--transition);
+    z-index: 1100;
+    position: relative;
 }
 
 .menu-toggle:hover {
     background: rgba(255, 255, 255, 0.1);
+}
+
+/* Ensure main content is not blocked by sidebar */
+.dashboard-content {
+    padding: 2rem 0;
+    margin-left: 0;
+}
+
+.filters-container {
+    margin-left: 0;
 }
 
 .category-tab:hover {
