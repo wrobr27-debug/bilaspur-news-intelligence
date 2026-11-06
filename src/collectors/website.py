@@ -101,9 +101,36 @@ class WebsiteCollector(BaseCollector):
     def _extract_from_soup(self, soup, source) -> list:
         """Extract items from BeautifulSoup object.
 
+        Default implementation extracts news-like links from any website.
         Override in subclasses for source-specific extraction.
         """
-        raise NotImplementedError("Subclasses must implement _extract_from_soup")
+        links = self._find_news_links(soup)
+
+        results = []
+        for link in links[:20]:  # Limit to 20 items per collection
+            try:
+                item = CollectedItems(
+                    source_id=source.id,
+                    title=link.title,
+                    original_url=link.url,
+                    canonical_url=link.url,
+                    description="",
+                    content_snippet="",
+                    author="",
+                    published_at=None,
+                    language="en",
+                    item_type="article",
+                    media_type="text",
+                    image_url="",
+                    video_url="",
+                    raw_metadata={},
+                    content_hash=self._generate_content_hash(link.title, link.url),
+                )
+                results.append(item)
+            except Exception as e:
+                logger.warning(f"Error creating item: {e}")
+
+        return results
 
     def _find_announcement_links(self, soup):
         """Find announcement/notice links from homepage."""
