@@ -8,6 +8,7 @@ from pathlib import Path
 import math
 import re
 import logging
+import threading
 
 from src.database.base import SessionLocal, engine
 from src.database.models import Sources, CollectedItems, SourceHealth
@@ -18,24 +19,63 @@ from src.summarizer import summarize_items
 
 logger = logging.getLogger(__name__)
 
+# Per-source collection timeout in seconds (prevents one slow source
+# from killing the whole pipeline). News-Agent relies on fast SQLite;
+# we use a timeout since we hit remote Neon PostgreSQL.
+SOURCE_COLLECT_TIMEOUT = 45  # seconds
+
 STOP_WORDS = {
     'in', 'the', 'a', 'of', 'to', 'and', 'is', 'for', 'at', 'by', 'from', 'on', 'with', 'as', 'an', 'it', 'its', 'that', 'this', 'are', 'was', 'were', 'be', 'been', 'has', 'have', 'had', 'will', 'would', 'should', 'can', 'could', 'about', 'after', 'before', 'new', 'news'
 }
 
 
 def _safe_collect(name: str, source, db) -> list:
-    """Safely collect from a single source, catching exceptions."""
+    """Safely collect from a single source, catching exceptions.
+
+    Enforces a per-source timeout so one slow/hanging source
+    (e.g., a JS-heavy government site waiting on Playwright)
+    doesn't kill the whole pipeline.
+    """
+    result_container = {}
+
+    def _run():
+        try:
+            collector = get_collector(source, db)
+            if not collector:
+                result_container["items"] = []
+                result_container["error"] = None
+                result_container["items_found"] = 0
+                result_container["items_inserted"] = 0
+                return
+            result = collector.collect()
+            result_container["items"] = (
+                result.items if hasattr(result, "items") and result.items else []
+            )
+            result_container["error"] = result.error
+            result_container["items_found"] = result.items_found
+            result_container["items_inserted"] = result.items_inserted
+        except Exception as e:
+            result_container["items"] = []
+            result_container["error"] = str(e)
+            result_container["items_found"] = 0
+            result_container["items_inserted"] = 0
+
+    thread = threading.Thread(target=_run, daemon=True)
+    thread.start()
+    thread.join(timeout=SOURCE_COLLECT_TIMEOUT)
+
+    if thread.is_alive():
+        logger.error(f"  {name} TIMEOUT after {SOURCE_COLLECT_TIMEOUT}s — skipping")
+        return []
+
     try:
-        logger.info(f"  {name}...", end=" ")
-        collector = get_collector(source, db)
-        if not collector:
-            logger.info("0 items (no collector)")
-            return []
-        result = collector.collect()
-        logger.info(f"{result.items_found} items (inserted: {result.items_inserted})")
-        if result.error:
-            logger.warning(f"  {name} error: {result.error}")
-        return result.items if hasattr(result, 'items') and result.items else []
+        logger.info(
+            f"  {name}... {result_container.get('items_found', 0)} items "
+            f"(inserted: {result_container.get('items_inserted', 0)})"
+        )
+        if result_container.get("error"):
+            logger.warning(f"  {name} error: {result_container['error']}")
+        return result_container.get("items", [])
     except Exception as e:
         logger.error(f"  {name} ERROR: {e}")
         import traceback

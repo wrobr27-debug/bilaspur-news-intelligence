@@ -3,9 +3,12 @@
 Uses BeautifulSoup for parsing. Designed for official government
 and publisher websites with structured announcement/notice pages.
 Respects robots.txt and access restrictions.
+Falls back to Playwright browser automation for JS-heavy sites
+(like CG government portals), following the News-Agent pattern.
 """
 
 from typing import List, Optional
+from datetime import datetime, timezone
 from src.collectors.base import BaseCollector, CollectionResult
 from src.database.models import Sources, CollectedItems
 from bs4 import BeautifulSoup
@@ -32,7 +35,13 @@ class WebsiteCollector(BaseCollector):
         )
 
     def collect(self) -> CollectionResult:
-        """Collect items from website HTML."""
+        """Collect items from website HTML.
+
+        Follows News-Agent pattern: try httpx first, fall back to
+        Playwright browser automation for JS-heavy sites (CG gov portals).
+        Per-source errors are caught so one failing source doesn't kill
+        the whole pipeline.
+        """
         if not self.source.source_url:
             return CollectionResult(
                 source_id=self.source.source_id,
@@ -47,42 +56,51 @@ class WebsiteCollector(BaseCollector):
         error = None
 
         try:
-            # Make request
+            # --- Step 1: Try httpx (fast, for static HTML sites) ---
             response_data = self._make_request(self.source.source_url)
-            if not response_data:
-                return CollectionResult(
-                    source_id=self.source.source_id,
-                    error="Failed to fetch website",
-                    collection_status="error",
+            html = None
+            if response_data:
+                html = response_data[0].text
+
+            if html:
+                soup = BeautifulSoup(html, "lxml")
+                items_batch = self._extract_from_soup(soup, self.source)
+                items.extend(items_batch)
+
+            # --- Step 2: Fallback to Playwright for JS-heavy sites ---
+            # (News-Agent does this for CMO and other SPA government sites)
+            if not items:
+                logger.info(
+                    f"No items from httpx for {self.source.source_id}, "
+                    f"trying Playwright browser fallback..."
                 )
+                playwright_items = self._scrape_with_playwright(self.source.source_url)
+                items.extend(playwright_items)
 
-            html = response_data[0].text
-            response_time_ms = response_data[1] if len(response_data) > 1 else 0
-            soup = BeautifulSoup(html, "lxml")
+            # --- Step 3: Process and insert all collected items ---
+            for item in items[:20]:  # Limit to 20 items per collection
+                try:
+                    # Check for duplicate via content_hash
+                    if item.content_hash:
+                        existing = (
+                            self.db.query(CollectedItems)
+                            .filter(CollectedItems.content_hash == item.content_hash)
+                            .first()
+                        )
+                        if existing:
+                            items_duplicate += 1
+                            continue
 
-            # Determine extraction strategy based on source
-            items_batch = self._extract_from_soup(soup, self.source)
+                    # Set source and timestamps
+                    item.source_id = self.source.id
+                    item.collected_at = datetime.now(timezone.utc)
 
-            for item in items_batch:
-                # Check for duplicate via content_hash
-                if item.content_hash:
-                    existing = (
-                        self.db.query(CollectedItems)
-                        .filter(CollectedItems.content_hash == item.content_hash)
-                        .first()
-                    )
-                    if existing:
-                        items_duplicate += 1
-                        continue
-
-                # Set source and timestamps
-                item.source_id = self.source.id
-                item.collected_at = datetime.now(timezone.utc) if "datetime" in dir() else None
-
-                self.db.add(item)
-                self.db.commit()
-                items_found += 1
-                items_inserted += 1
+                    self.db.add(item)
+                    self.db.commit()
+                    items_found += 1
+                    items_inserted += 1
+                except Exception as e:
+                    logger.warning(f"Error inserting item: {e}")
 
         except Exception as e:
             error = f"Website collection error: {e}"
@@ -97,6 +115,73 @@ class WebsiteCollector(BaseCollector):
             error=error,
             collection_status="ok" if items_inserted > 0 else "ok",
         )
+
+    def _scrape_with_playwright(self, url: str) -> list:
+        """Use Playwright browser automation for JS-heavy sites.
+
+        Follows News-Agent's government.py pattern: launch headless
+        Chromium, wait for DOM content, extract links via JS evaluation.
+        """
+        items = []
+        try:
+            from playwright.sync_api import sync_playwright
+
+            with sync_playwright() as p:
+                browser = p.chromium.launch(
+                    headless=True,
+                    args=["--no-sandbox", "--disable-dev-shm-usage"],
+                )
+                page = browser.new_page()
+                try:
+                    page.goto(
+                        url,
+                        wait_until="domcontentloaded",
+                        timeout=15000,
+                    )
+                    page.wait_for_timeout(3000)
+
+                    links = page.evaluate("""() => {
+                        const results = [];
+                        const seen = new Set();
+                        const tags = document.querySelectorAll('a, h2, h3, h4');
+                        for (const t of tags) {
+                            const text = t.innerText?.trim();
+                            const href = t.tagName === 'A'
+                                ? (t.href || '')
+                                : (t.querySelector('a')?.href || '');
+                            if (text && text.length > 10 && !seen.has(text)) {
+                                seen.add(text);
+                                results.push({
+                                    text: text.slice(0, 200),
+                                    href: href.slice(0, 500)
+                                });
+                            }
+                        }
+                        return results;
+                    }""")
+
+                    from urllib.parse import urljoin
+                    for link in links:
+                        href = link["href"] or url
+                        if not href.startswith("http"):
+                            href = urljoin(url, href)
+                        items.append(
+                            type(
+                                "NewsItemData",
+                                (),
+                                {"title": link["text"], "url": href},
+                            )()
+                        )
+                except Exception as e:
+                    logger.warning(f"Playwright scrape failed for {url}: {e}")
+                finally:
+                    browser.close()
+        except ImportError:
+            logger.warning("Playwright not installed, skipping browser fallback")
+        except Exception as e:
+            logger.warning(f"Playwright error for {url}: {e}")
+
+        return items
 
     def _extract_from_soup(self, soup, source) -> list:
         """Extract items from BeautifulSoup object.
