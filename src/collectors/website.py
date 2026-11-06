@@ -81,7 +81,7 @@ class WebsiteCollector(BaseCollector):
             for item in items[:20]:  # Limit to 20 items per collection
                 try:
                     # Check for duplicate via content_hash
-                    if item.content_hash:
+                    if getattr(item, "content_hash", None):
                         existing = (
                             self.db.query(CollectedItems)
                             .filter(CollectedItems.content_hash == item.content_hash)
@@ -165,11 +165,20 @@ class WebsiteCollector(BaseCollector):
                         href = link["href"] or url
                         if not href.startswith("http"):
                             href = urljoin(url, href)
+                        # Generate content_hash for dedup (same as httpx path)
+                        import hashlib
+                        content_hash = hashlib.sha256(
+                            f"{link['text']}:{href}".encode()
+                        ).hexdigest()
                         items.append(
                             type(
                                 "NewsItemData",
                                 (),
-                                {"title": link["text"], "url": href},
+                                {
+                                    "title": link["text"],
+                                    "url": href,
+                                    "content_hash": content_hash,
+                                },
                             )()
                         )
                 except Exception as e:
