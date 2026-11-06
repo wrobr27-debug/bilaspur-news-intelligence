@@ -223,7 +223,7 @@ class SourceHealth(Base):
     __tablename__ = "source_health"
 
     id = Column(Integer, primary_key=True, index=True)
-    source_id = Column(Integer, ForeignKey("sources.id"), nullable=False, index=True)
+    source_id = Column(String, nullable=False, index=True)
     checked_at = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(
         String(30),
