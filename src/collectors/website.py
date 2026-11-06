@@ -199,6 +199,12 @@ class WebsiteCollector(BaseCollector):
 
         return links
 
+    def _generate_content_hash(self, title: str, url: str) -> str:
+        """Generate a content hash for deduplication."""
+        import hashlib
+        raw = f"{title}:{url}"
+        return hashlib.sha256(raw.encode()).hexdigest()
+
 
 class GovtWebsiteCollector(WebsiteCollector):
     """Collector for government website announcement pages."""
