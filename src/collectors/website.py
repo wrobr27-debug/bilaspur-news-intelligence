@@ -161,26 +161,39 @@ class WebsiteCollector(BaseCollector):
                     }""")
 
                     from urllib.parse import urljoin
+                    from datetime import datetime, timezone
+                    import hashlib
+
                     for link in links:
                         href = link["href"] or url
                         if not href.startswith("http"):
                             href = urljoin(url, href)
+
                         # Generate content_hash for dedup (same as httpx path)
-                        import hashlib
                         content_hash = hashlib.sha256(
                             f"{link['text']}:{href}".encode()
                         ).hexdigest()
-                        items.append(
-                            type(
-                                "NewsItemData",
-                                (),
-                                {
-                                    "title": link["text"],
-                                    "url": href,
-                                    "content_hash": content_hash,
-                                },
-                            )()
+
+                        # Create actual CollectedItems instance (not dynamic type)
+                        item = CollectedItems(
+                            source_id=self.source.id,
+                            title=link["text"][:200],
+                            original_url=href,
+                            canonical_url=href,
+                            description="",
+                            content_snippet="",
+                            author="",
+                            published_at=None,
+                            language="en",
+                            item_type="article",
+                            media_type="text",
+                            image_url="",
+                            video_url="",
+                            raw_metadata={},
+                            content_hash=content_hash,
+                            collected_at=datetime.now(timezone.utc),
                         )
+                        items.append(item)
                 except Exception as e:
                     logger.warning(f"Playwright scrape failed for {url}: {e}")
                 finally:
