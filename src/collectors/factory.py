@@ -16,26 +16,46 @@ def register_collector(method: str, collector_class: type):
     _COLLECTOR_MAP[method] = collector_class
 
 
+# Register built-in collectors
+from src.collectors.rss import RSSCollector
+from src.collectors.website import WebsiteCollector, GovtWebsiteCollector
+from src.collectors.youtube import YouTubeCollector
+from src.collectors.instagram import InstagramCollector
+
+_REGISTERED = False
+
+
+def _ensure_registered():
+    """Register all built-in collectors once."""
+    global _REGISTERED
+    if not _REGISTERED:
+        _COLLECTOR_MAP["rss"] = RSSCollector
+        _COLLECTOR_MAP["atom"] = RSSCollector
+        _COLLECTOR_MAP["html"] = WebsiteCollector
+        _COLLECTOR_MAP["manual"] = WebsiteCollector
+        _COLLECTOR_MAP["api"] = YouTubeCollector
+        _COLLECTOR_MAP["instagram"] = InstagramCollector
+        _REGISTERED = True
+
+
 def get_collector_class(method: str) -> type:
     """Get the collector class for a given collection method."""
+    _ensure_registered()
     return _COLLECTOR_MAP.get(method)
 
 
 def get_collector(source, db_session) -> Optional[object]:
     """Factory function to get a collector instance for a source."""
     from src.collectors.base import BaseCollector
+
+    _ensure_registered()
     
     method = getattr(source, 'collection_method', 'html')
     collector_class = _COLLECTOR_MAP.get(method)
     
     if collector_class is None:
-        if method == "instagram":
-            from src.collectors.instagram import InstagramCollector
-            collector_class = InstagramCollector
-        else:
-            # Default to WebsiteCollector
-            from src.collectors.website import WebsiteCollector
-            collector_class = WebsiteCollector
+        # Default to WebsiteCollector
+        collector_class = WebsiteCollector
     
     try:
         return collector_class(source, db_session)

@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bilaspur News Intelligence - News Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <!-- Header -->
+    <header class="dashboard-header">
+        <div class="container">
+            <div class="header-content">
+                <div class="logo">
+                    <i class="fas fa-newspaper"></i>
+                    <div class="logo-text">
+                        <h1>Bilaspur News Intelligence</h1>
+                        <span class="subtitle">News Collection &amp; Monitoring Dashboard</span>
+                    </div>
+                </div>
+                <div class="header-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="total-items">0</div>
+                        <div class="stat-label">News Items</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="active-sources">0</div>
+                        <div class="stat-label">Active Sources</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="last-run">Never</div>
+                        <div class="stat-label">Last Collection</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="total-sources">0</div>
+                        <div class="stat-label">Total Sources</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation / Category Tabs -->
+    <nav class="category-nav">
+        <div class="container">
+            <button class="category-tab active" data-category="all">
+                <i class="fas fa-list"></i> All News
+            </button>
+            <button class="category-tab" data-category="government">
+                <i class="fas fa-building"></i> Government
+            </button>
+            <button class="category-tab" data-category="police">
+                <i class="fas fa-badge-check"></i> Police
+            </button>
+            <button class="category-tab" data-category="newspaper">
+                <i class="fas fa-newspaper"></i> Newspaper
+            </button>
+            <button class="category-tab" data-category="television">
+                <i class="fas fa-tv"></i> Television
+            </button>
+            <button class="category-tab" data-category="education">
+                <i class="fas fa-graduation-cap"></i> Education
+            </button>
+            <button class="category-tab" data-category="transport">
+                <i class="fas fa-bus"></i> Transport
+            </button>
+            <button class="category-tab" data-category="health">
+                <i class="fas fa-hospital"></i> Health
+            </button>
+            <button class="category-tab" data-category="business">
+                <i class="fas fa-chart-line"></i> Business
+            </button>
+            <button class="category-tab" data-category="agriculture">
+                <i class="fas fa-leaf"></i> Agriculture
+            </button>
+            <button class="category-tab" data-category="environment">
+                <i class="fas fa-recycle"></i> Environment
+            </button>
+            <button class="category-tab" data-category="social_media">
+                <i class="fas fa-share-alt"></i> Social Media
+            </button>
+            <button class="category-tab" data-category="youtube">
+                <i class="fab fa-youtube"></i> YouTube
+            </button>
+            <button class="category-tab" data-category="instagram">
+                <i class="fab fa-instagram"></i> Instagram
+            </button>
+            <button class="category-tab" data-category="facebook">
+                <i class="fab fa-facebook"></i> Facebook
+            </button>
+            <button class="category-tab" data-category="twitter">
+                <i class="fab fa-twitter"></i> Twitter/X
+            </button>
+            <button class="category-tab" data-category="other">
+                <i class="fas fa-folder"></i> Other
+            </button>
+        </div>
+    </nav>
+
+    <!-- Filters -->
+    <div class="filters-container">
+        <div class="container">
+            <div class="filter-group">
+                <label for="search-filter">Search News</label>
+                <input type="text" id="search-filter" placeholder="Search titles, content, sources...">
+            </div>
+            <div class="filter-group">
+                <label for="type-filter">Content Type</label>
+                <select id="type-filter">
+                    <option value="all">All Types</option>
+                    <option value="article">Article</option>
+                    <option value="video">Video</option>
+                    <option value="announcement">Announcement</option>
+                    <option value="event">Event</option>
+                </select>
+            </div>
+            <div class="filter-group">
+                <label for="status-filter">Collection Status</label>
+                <select id="status-filter">
+                    <option value="all">All Status</option>
+                    <option value="collected">Collected</option>
+                    <option value="duplicate">Duplicate</option>
+                    <option value="skipped">Skipped</option>
+                    <option value="error">Error</option>
+                </select>
+            </div>
+            <button class="btn btn-refresh" id="refresh-btn">
+                <i class="fas fa-sync-alt"></i> Refresh Data
+            </button>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="dashboard-content">
+        <div class="container">
+            <!-- Last Run Info -->
+            <section class="run-info-section">
+                <div class="run-info-card">
+                    <h3><i class="fas fa-clock"></i> Last Collection Run</h3>
+                    <div class="run-details">
+                        <div class="run-detail">
+                            <span class="detail-label">Last Run:</span>
+                            <span class="detail-value" id="last-run-time">Never</span>
+                        </div>
+                        <div class="run-detail">
+                            <span class="detail-label">Status:</span>
+                            <span class="detail-value status-badge status-unknown" id="last-run-status">-</span>
+                        </div>
+                        <div class="run-detail">
+                            <span class="detail-label">Items Found:</span>
+                            <span class="detail-value" id="run-items-found">0</span>
+                        </div>
+                        <div class="run-detail">
+                            <span class="detail-label">Items Inserted:</span>
+                            <span class="detail-value" id="run-items-inserted">0</span>
+                        </div>
+                        <div class="run-detail">
+                            <span class="detail-label">Sources Processed:</span>
+                            <span class="detail-value" id="run-sources-processed">0</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- News Items Grid -->
+            <section class="news-section">
+                <div class="section-header">
+                    <h2><i class="fas fa-bullhorn"></i> Latest News Items</h2>
+                    <span class="item-count" id="news-count">0 items</span>
+                </div>
+                
+                <div class="news-grid" id="news-grid">
+                    <!-- News items will be injected here -->
+                    <div class="loading-state">
+                        <i class="fas fa-spinner fa-spin"></i>
+                        <p>Loading news data...</p>
+                    </div>
+                </div>
+                
+                <div class="pagination" id="pagination">
+                    <!-- Pagination controls -->
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="dashboard-footer">
+        <div class="container">
+            <div class="footer-content">
+                <p>Bilaspur News Intelligence Dashboard</p>
+                <p>Last data update: <span id="footer-last-update">Never</span></p>
+                <p>Sources: District Administration, Nagar Nigam, CMO Chhattisgarh, Newspapers, TV Channels, Universities, Transport, Health, Business, Agriculture, Environment, Social Media</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

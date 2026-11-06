@@ -84,6 +84,8 @@ class BaseCollector(ABC):
                 timeout_config = httpx.Timeout(
                     connect=self.connect_timeout,
                     read=self.timeout,
+                    write=self.connect_timeout,
+                    pool=self.connect_timeout,
                 )
                 response = httpx.get(
                     url,
