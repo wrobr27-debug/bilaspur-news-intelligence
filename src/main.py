@@ -77,7 +77,13 @@ def run_collect():
                 print(f"  No collector available for type: {source.source_type}")
                 continue
             
-            result = collector.collect()
+            try:
+                result = collector.collect()
+            except Exception as e:
+                print(f"  Collector error for {source.source_id}: {e}")
+                import traceback
+                traceback.print_exc()
+                continue
             
             print(f"  Items found: {result.items_found}")
             print(f"  Items inserted: {result.items_inserted}")
