@@ -123,7 +123,7 @@ class Sources(Base):
     source_health = relationship(
         "SourceHealth",
         back_populates="source",
-        primaryjoin="Sources.id == SourceHealth.source_id",
+        primaryjoin="foreign(Sources.source_id) == SourceHealth.source_id",
     )
 
 
