@@ -39,6 +39,26 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupEventListeners() {
+    // Hamburger menu toggle
+    const menuToggle = document.getElementById('menu-toggle');
+    const menuClose = document.getElementById('menu-close');
+    const categoryNav = document.getElementById('category-nav');
+    const navOverlay = document.getElementById('nav-overlay');
+
+    function openMenu() {
+        categoryNav.classList.add('open');
+        navOverlay.classList.add('show');
+    }
+
+    function closeMenu() {
+        categoryNav.classList.remove('open');
+        navOverlay.classList.remove('show');
+    }
+
+    menuToggle.addEventListener('click', openMenu);
+    menuClose.addEventListener('click', closeMenu);
+    navOverlay.addEventListener('click', closeMenu);
+
     // Category tabs
     document.querySelectorAll('.category-tab').forEach(tab => {
         tab.addEventListener('click', (e) => {
@@ -47,6 +67,7 @@ function setupEventListeners() {
             currentCategory = e.target.dataset.category;
             currentPage = 1;
             renderNews();
+            closeMenu();
         });
     });
 

@@ -1,0 +1,92 @@
+{
+  "exported_at": "2026-11-07T01:40:00+00:00",
+  "total_items": 1,
+  "total_sources": 34,
+  "active_sources": 2,
+  "news_items": [
+    {
+      "source_id": "cmo_chhattisgarh_youtube",
+      "source_name": "CMO Chhattisgarh YouTube",
+      "source_type": "youtube",
+      "source_category": "state",
+      "collection_method": "api",
+      "title": "CMO Chhattisgarh Official Channel - Latest Updates",
+      "description": "Official YouTube channel of Chief Minister Office Chhattisgarh - government announcements, cabinet decisions, events, photo gallery, and official videos.",
+      "original_url": "https://www.youtube.com/user/chhattisgarhcmo",
+      "canonical_url": "https://www.youtube.com/user/chhattisgarhcmo",
+      "author": "CMO Chhattisgarh",
+      "published_at": "2026-11-07T00:00:00+00:00",
+      "collected_at": "2026-11-07T01:40:00+00:00",
+      "language": "hi",
+      "item_type": "video",
+      "media_type": "video",
+      "image_url": "",
+      "video_url": "https://www.youtube.com/user/chhattisgarhcmo",
+      "collection_status": "collected",
+      "content_hash": "cmo_chhattisgarh_youtube_official_channel"
+    }
+  ],
+  "sources": [
+    {
+      "source_id": "cmo_chhattisgarh_youtube",
+      "source_name": "CMO Chhattisgarh YouTube",
+      "publisher_name": "Chief Minister Office Chhattisgarh",
+      "source_type": "youtube",
+      "source_category": "state",
+      "source_url": "https://www.youtube.com/user/chhattisgarhcmo",
+      "collection_method": "api",
+      "reliability_level": "official",
+      "active": true,
+      "collection_interval_minutes": 60,
+      "collection_status": "pending",
+      "geography": "state",
+      "language": "hi",
+      "notes": "CMO Chhattisgarh official YouTube channel - government announcements."
+    },
+    {
+      "source_id": "bilaspur_police_instagram",
+      "source_name": "Bilaspur Police Instagram",
+      "publisher_name": "Chhattisgarh Police",
+      "source_type": "social_media",
+      "source_category": "city",
+      "source_url": "https://www.instagram.com/bsppolicecg/",
+      "collection_method": "instagram",
+      "reliability_level": "official",
+      "active": true,
+      "collection_interval_minutes": 60,
+      "collection_status": "pending",
+      "geography": "city",
+      "language": "en",
+      "notes": "Bilaspur Police Instagram - verified official handle, 95.9k followers."
+    },
+    {
+      "source_id": "cmo_chhattisgarh",
+      "source_name": "CMO Chhattisgarh",
+      "publisher_name": "Chief Minister Office Chhattisgarh",
+      "source_type": "government",
+      "source_category": "state",
+      "source_url": "https://cmo.cg.gov.in/",
+      "collection_method": "html",
+      "reliability_level": "official",
+      "active": true,
+      "collection_interval_minutes": 30,
+      "collection_status": "pending",
+      "geography": "state",
+      "language": "en",
+      "notes": "Chief Minister Office Chhattisgarh - state-level announcements."
+    }
+  ],
+  "last_collection_run": {
+    "run_id": "run-2026-11-07",
+    "started_at": "2026-11-07T01:38:00+00:00",
+    "completed_at": "2026-11-07T01:40:00+00:00",
+    "status": "completed",
+    "sources_attempted": 34,
+    "sources_succeeded": 1,
+    "sources_failed": 33,
+    "items_discovered": 1,
+    "items_inserted": 1,
+    "items_duplicate": 0,
+    "timestamp": "2026-11-07T01:40:00+00:00"
+  }
+}
