@@ -247,3 +247,55 @@ class SourceRegistry:
             db.commit()
             db.refresh(db_source)
         return db_source
+
+    @staticmethod
+    def is_duplicate(db: Session, source: str, unique_id: str, ttl_days: int = 30) -> bool:
+        """Check if an item from this source with this unique_id was seen recently."""
+        from src.database.models import CollectedItems
+        from datetime import timedelta
+        cutoff = datetime.now(timezone.utc) - timedelta(days=ttl_days)
+        existing = (
+            db.query(CollectedItems)
+            .filter(CollectedItems.source == source)
+            .filter(CollectedItems.original_url == unique_id)
+            .filter(CollectedItems.collected_at >= cutoff)
+            .first()
+        )
+        return existing is not None
+
+    @staticmethod
+    def mark_seen(
+        db: Session,
+        source: str,
+        unique_id: str,
+        title: str,
+        url: str = None,
+        published_at: datetime = None,
+        image_url: str = None,
+    ):
+        """Record that an item was seen to prevent future duplicates."""
+        from src.database.models import CollectedItems
+        existing = (
+            db.query(CollectedItems)
+            .filter(CollectedItems.source == source)
+            .filter(CollectedItems.original_url == unique_id)
+            .first()
+        )
+        if not existing:
+            item = CollectedItems(
+                source=source,
+                title=title,
+                original_url=url or unique_id,
+                canonical_url=url or unique_id,
+                description="",
+                content_snippet="",
+                author="",
+                published_at=published_at,
+                language="en",
+                item_type="news",
+                media_type="text",
+                image_url=image_url or "",
+                video_url="",
+                raw_metadata={},
+            )
+            db.add(item)

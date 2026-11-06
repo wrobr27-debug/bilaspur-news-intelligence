@@ -36,11 +36,10 @@ def init_db():
         return False
 
 
-def run_collect():
-    """Run collection due sources."""
-    from src.database.base import get_session
-    from src.collectors.factory import get_collector
-    from src.database.models import CollectedItems
+def run_collect(social: bool = False):
+    """Run collection due sources using the aggregator pipeline."""
+    from src.database.base import get_session, engine
+    from src.aggregator import run_pipeline, print_digest
     
     db = get_session()
     try:
@@ -51,64 +50,16 @@ def run_collect():
             print("Run 'python -m src.main seed' to initialize the source registry.")
             sys.exit(1)
         
-        # Identify sources due for collection
-        due_sources = SourceRegistry.identify_sources_due(db)
+        print(f"Collecting from {total_sources} registered sources (social={social})...")
         
-        if not due_sources:
-            active_count = len(SourceRegistry.list_sources(db, active_only=True))
-            print("No sources due for collection at this time.")
-            print(f"Total sources: {total_sources}, Active sources: {active_count}, Due sources: 0")
-            return
-
-        print(f"Collecting from {len(due_sources)} sources due...")
+        # Run the full pipeline: collect, deduplicate, summarize
+        log_file = str(Path("logs") / "pipeline.log") if "Path" in dir() else None
+        from pathlib import Path as _Path
+        log_file = str(_Path("logs") / "pipeline.log")
         
-        total_items_found = 0
-        total_items_inserted = 0
-        total_items_duplicate = 0
-        sources_processed = 0
+        summarized = run_pipeline(social=social, log_file=log_file)
         
-        for source in due_sources:
-            sources_processed += 1
-            print(f"\n--- Collecting: {source.source_name} ({source.source_type}) ---")
-            
-            # Determine which collector to use
-            collector = get_collector(source, db)
-            if not collector:
-                print(f"  No collector available for type: {source.source_type}")
-                continue
-            
-            try:
-                result = collector.collect()
-            except Exception as e:
-                print(f"  Collector error for {source.source_id}: {e}")
-                import traceback
-                traceback.print_exc()
-                continue
-            
-            print(f"  Items found: {result.items_found}")
-            print(f"  Items inserted: {result.items_inserted}")
-            print(f"  Items duplicate: {result.items_duplicate}")
-            if result.error:
-                print(f"  Error: {result.error}")
-            
-            total_items_found += result.items_found
-            total_items_inserted += result.items_inserted
-            total_items_duplicate += result.items_duplicate
-            
-            # Small delay to avoid rate limiting
-            import time
-            time.sleep(1)
-        
-        print(f"\n=== Collection Summary ===")
-        print(f"Database dialect: {engine.dialect.name}")
-        print(f"Total sources: {len(SourceRegistry.list_sources(db, active_only=False))}")
-        active_sources = SourceRegistry.list_sources(db, active_only=True)
-        print(f"Active sources: {len(active_sources)}")
-        print(f"Due sources: {len(due_sources)}")
-        print(f"Sources processed: {sources_processed}")
-        print(f"Total items found: {total_items_found}")
-        print(f"Total items inserted: {total_items_inserted}")
-        print(f"Total items duplicate: {total_items_duplicate}")
+        print_digest(summarized)
         
     except Exception as e:
         print(f"Collection error: {e}")
@@ -255,6 +206,7 @@ def main():
     # Collect command
     collect_parser = subparsers.add_parser("collect", help="Run collection due sources")
     collect_parser.add_argument("--source", type=str, help="Collect specific source by ID")
+    collect_parser.add_argument("--social", action="store_true", help="Enable social media scrapers")
     
     # List sources
     list_parser = subparsers.add_parser("list", help="List all sources")
@@ -286,7 +238,7 @@ def main():
         if args.source:
             run_collect_source(args.source)
         else:
-            run_collect()
+            run_collect(social=args.social)
     elif args.command == "list":
         list_sources(args.source)
     elif args.command == "check":

@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     youtube_interval: int = Field(default=60, alias="YOUTUBE_INTERVAL")
     lower_priority_interval: int = Field(default=120, alias="LOWER_PRIORITY_INTERVAL")
 
+    # Social media settings
+    twitter_handle: str = Field(default="", alias="TWITTER_HANDLE")
+    instagram_username: str = Field(default="", alias="INSTAGRAM_USERNAME")
+    instagram_password: str = Field(default="", alias="INSTAGRAM_PASSWORD")
+    social_scrapers_enabled: bool = Field(default=False, alias="SOCIAL_SCRAPERS_ENABLED")
+
     # HTTP timeout settings
     http_timeout_seconds: int = Field(default=30, alias="HTTP_TIMEOUT")
     http_connect_timeout: int = Field(default=10, alias="HTTP_CONNECT_TIMEOUT")
