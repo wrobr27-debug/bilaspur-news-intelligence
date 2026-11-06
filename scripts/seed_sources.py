@@ -33,7 +33,7 @@ def seed_initial_sources(force: bool = False):
             return
         
         # Define source categories and their discovery targets
-    # Total: 36 sources (32 websites + 4 social media)
+    # Total: 35 sources (32 websites + 3 social media: 2 YouTube + 1 Instagram)
         # Government sources
         government_sources = [
             {
@@ -750,7 +750,7 @@ def seed_initial_sources(force: bool = False):
                 "active": False,
                 "collection_interval_minutes": 60,
                 "terms_url": "https://www.ibc24.in/",
-                "notes": "IBC24 YouTube channel - Hindi news video content.",
+                "notes": "IBC24 YouTube channel - Hindi news video content. URL returns 404 on /c/IBC24News - needs correct channel URL investigation.",
             },
             {
                 "source_id": "bilaspur_police_instagram",
@@ -770,27 +770,7 @@ def seed_initial_sources(force: bool = False):
                 "active": False,
                 "collection_interval_minutes": 60,
                 "terms_url": "https://www.instagram.com/",
-                "notes": "Bilaspur Police Instagram - crime, traffic, safety announcements.",
-            },
-            {
-                "source_id": "cg_police_instagram",
-                "source_name": "Chhattisgarh Police Instagram",
-                "publisher_name": "Chhattisgarh Police Headquarters",
-                "source_type": "social_media",
-                "source_category": "state",
-                "source_url": "https://www.instagram.com/cg_police/",
-                "content_url": None,
-                "rss_url": None,
-                "api_url": None,
-                "sitemap_url": None,
-                "geography": "state",
-                "language": "en",
-                "collection_method": "instagram",
-                "reliability_level": "official",
-                "active": False,
-                "collection_interval_minutes": 60,
-                "terms_url": "https://www.instagram.com/",
-                "notes": "Chhattisgarh Police Instagram - state-level police announcements.",
+                "notes": "Bilaspur Police Instagram - verified official handle, 95.9k followers, crime/traffic/safety announcements.",
             },
         ]
 
