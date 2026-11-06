@@ -242,4 +242,4 @@ class SourceHealth(Base):
     )
 
     # Relationship
-    source = relationship("Sources", back_populates="source_health")
+    source = relationship("Sources", back_populates="source_health", primaryjoin="foreign(Sources.source_id) == SourceHealth.source_id")
