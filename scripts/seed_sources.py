@@ -33,6 +33,7 @@ def seed_initial_sources(force: bool = False):
             return
         
         # Define source categories and their discovery targets
+    # Total: 36 sources (32 websites + 4 social media)
         # Government sources
         government_sources = [
             {
@@ -709,6 +710,90 @@ def seed_initial_sources(force: bool = False):
             },
         ]
         
+        # Social media sources (YouTube, Instagram)
+        social_sources = [
+            {
+                "source_id": "cmo_chhattisgarh_youtube",
+                "source_name": "CMO Chhattisgarh YouTube",
+                "publisher_name": "Chief Minister Office Chhattisgarh",
+                "source_type": "youtube",
+                "source_category": "state",
+                "source_url": "https://www.youtube.com/user/chhattisgarhcmo",
+                "content_url": None,
+                "rss_url": None,
+                "api_url": "UCNgQXeaaxnF-cCQFC4iMr9w",
+                "sitemap_url": None,
+                "geography": "state",
+                "language": "hi",
+                "collection_method": "api",
+                "reliability_level": "official",
+                "active": False,
+                "collection_interval_minutes": 60,
+                "terms_url": "https://www.youtube.com/",
+                "notes": "CMO Chhattisgarh official YouTube channel - government announcements.",
+            },
+            {
+                "source_id": "ibc24_youtube",
+                "source_name": "IBC24 YouTube",
+                "publisher_name": "IBC24 Group",
+                "source_type": "youtube",
+                "source_category": "state",
+                "source_url": "https://www.youtube.com/c/IBC24News",
+                "content_url": None,
+                "rss_url": None,
+                "api_url": None,
+                "sitemap_url": None,
+                "geography": "state",
+                "language": "hi",
+                "collection_method": "html",
+                "reliability_level": "established_publisher",
+                "active": False,
+                "collection_interval_minutes": 60,
+                "terms_url": "https://www.ibc24.in/",
+                "notes": "IBC24 YouTube channel - Hindi news video content.",
+            },
+            {
+                "source_id": "bilaspur_police_instagram",
+                "source_name": "Bilaspur Police Instagram",
+                "publisher_name": "Chhattisgarh Police",
+                "source_type": "social_media",
+                "source_category": "city",
+                "source_url": "https://www.instagram.com/bsppolicecg/",
+                "content_url": None,
+                "rss_url": None,
+                "api_url": None,
+                "sitemap_url": None,
+                "geography": "city",
+                "language": "en",
+                "collection_method": "instagram",
+                "reliability_level": "official",
+                "active": False,
+                "collection_interval_minutes": 60,
+                "terms_url": "https://www.instagram.com/",
+                "notes": "Bilaspur Police Instagram - crime, traffic, safety announcements.",
+            },
+            {
+                "source_id": "cg_police_instagram",
+                "source_name": "Chhattisgarh Police Instagram",
+                "publisher_name": "Chhattisgarh Police Headquarters",
+                "source_type": "social_media",
+                "source_category": "state",
+                "source_url": "https://www.instagram.com/cg_police/",
+                "content_url": None,
+                "rss_url": None,
+                "api_url": None,
+                "sitemap_url": None,
+                "geography": "state",
+                "language": "en",
+                "collection_method": "instagram",
+                "reliability_level": "official",
+                "active": False,
+                "collection_interval_minutes": 60,
+                "terms_url": "https://www.instagram.com/",
+                "notes": "Chhattisgarh Police Instagram - state-level police announcements.",
+            },
+        ]
+
         # Collect all source definitions
         all_sources = (
             government_sources
@@ -720,6 +805,7 @@ def seed_initial_sources(force: bool = False):
             + health_sources
             + business_sources
             + agriculture_sources
+            + social_sources
         )
         
         # Add each source to the registry

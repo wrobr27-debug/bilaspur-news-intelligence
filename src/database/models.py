@@ -72,10 +72,11 @@ class Sources(Base):
             "atom",
             "api",
             "html",
+            "instagram",
             "manual",
             name="collection_method_enum",
         ),
-        comment="Method: rss|atom|api|html|manual",
+        comment="Method: rss|atom|api|html|instagram|manual",
     )
     reliability_level = Column(
         SAEnum(

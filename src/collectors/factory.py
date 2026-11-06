@@ -29,9 +29,13 @@ def get_collector(source, db_session) -> Optional[object]:
     collector_class = _COLLECTOR_MAP.get(method)
     
     if collector_class is None:
-        # Default to WebsiteCollector
-        from src.collectors.website import WebsiteCollector
-        collector_class = WebsiteCollector
+        if method == "instagram":
+            from src.collectors.instagram import InstagramCollector
+            collector_class = InstagramCollector
+        else:
+            # Default to WebsiteCollector
+            from src.collectors.website import WebsiteCollector
+            collector_class = WebsiteCollector
     
     try:
         return collector_class(source, db_session)
