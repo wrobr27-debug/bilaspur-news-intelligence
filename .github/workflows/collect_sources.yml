@@ -14,7 +14,7 @@ on:
       social:
         description: 'Enable social media scrapers (Twitter, Instagram)'
         required: false
-        default: 'false'
+        default: 'true'
 
 jobs:
   collect-sources:

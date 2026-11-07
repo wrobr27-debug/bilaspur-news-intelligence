@@ -136,7 +136,7 @@ class WebsiteCollector(BaseCollector):
                     page.goto(
                         url,
                         wait_until="domcontentloaded",
-                        timeout=15000,
+                        timeout=30000,
                     )
                     page.wait_for_timeout(3000)
 

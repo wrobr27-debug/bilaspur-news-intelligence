@@ -113,14 +113,13 @@ class BaseCollector(ABC):
                 if response.status_code == 200:
                     return response, response_time_ms
                 else:
+                    # Return non-200 responses too - they may contain useful content
+                    # after redirects (e.g., 301/302 to error pages with content)
                     logger.warning(
                         f"HTTP {response.status_code} from {url} "
-                        f"(attempt {attempt + 1})"
+                        f"(attempt {attempt + 1}) - returning response anyway"
                     )
-                    if attempt < self.max_retries - 1:
-                        backoff = self.backoff_factor ** attempt
-                        time.sleep(backoff)
-                    continue
+                    return response, response_time_ms
 
             except httpx.TimeoutException as e:
                 logger.warning(f"Timeout requesting {url} (attempt {attempt + 1}): {e}")
