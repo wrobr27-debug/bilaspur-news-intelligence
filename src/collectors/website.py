@@ -55,6 +55,7 @@ class WebsiteCollector(BaseCollector):
         items_inserted = 0
         items_duplicate = 0
         error = None
+        last_http_status = None
 
         try:
             # --- Step 1: Try httpx (fast, for static HTML sites) ---
@@ -62,6 +63,7 @@ class WebsiteCollector(BaseCollector):
             html = None
             if response_data:
                 html = response_data[0].text
+                last_http_status = response_data[0].status_code
 
             if html:
                 soup = BeautifulSoup(html, "lxml")
@@ -114,7 +116,8 @@ class WebsiteCollector(BaseCollector):
             items_inserted=items_inserted,
             items_duplicate=items_duplicate,
             error=error,
-            collection_status="ok" if items_inserted > 0 else "ok",
+            http_status=last_http_status,
+            collection_status="ok" if not error and items_inserted > 0 else ("error" if error else "ok"),
         )
 
     def _scrape_with_playwright(self, url: str) -> list:

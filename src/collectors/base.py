@@ -9,6 +9,7 @@ from typing import List, Optional, Dict, Any
 import logging
 import time
 import httpx
+from urllib.parse import urlparse
 
 logger = logging.getLogger(__name__)
 
@@ -55,6 +56,9 @@ class BaseCollector(ABC):
     10. Record collection health.
     """
 
+    # HTTP status codes that should NOT be retried (permanent failures)
+    NO_RETRY_STATUS_CODES = {400, 401, 403, 404, 410, 451}
+
     def __init__(self, source, db_session):
         self.source = source
         self.db = db_session
@@ -74,9 +78,76 @@ class BaseCollector(ABC):
         """Perform the collection and return results."""
         pass
 
+    def _check_robots_txt(self, url: str) -> bool:
+        """Check if the URL is allowed by robots.txt.
+
+        Returns True if crawling is allowed or robots.txt cannot be fetched.
+        Returns False if crawling is explicitly disallowed.
+        """
+        try:
+            import httpx
+            parsed = urlparse(url)
+            robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
+
+            timeout_config = httpx.Timeout(
+                connect=self.connect_timeout,
+                read=self.timeout,
+                write=self.connect_timeout,
+                pool=self.connect_timeout,
+            )
+            response = httpx.get(
+                robots_url,
+                timeout=timeout_config,
+                headers={
+                    "User-Agent": "BilaspurNewsIntelligence/0.1 "
+                    "(+https://github.com/wrobr27-debug/News-Agent)"
+                },
+            )
+
+            if response.status_code != 200:
+                # No robots.txt or error — allow crawling
+                return True
+
+            robots_text = response.text.lower()
+            user_agent_section = False
+            disallow_all = False
+
+            for line in robots_text.splitlines():
+                line = line.strip()
+                if line.startswith("user-agent:"):
+                    ua = line.split(":", 1)[1].strip()
+                    user_agent_section = ua in ("*", "bilaspurnewsintelligence")
+                    disallow_all = False
+                elif line.startswith("disallow:") and user_agent_section:
+                    path = line.split(":", 1)[1].strip()
+                    if path == "/":
+                        disallow_all = True
+                    elif urlparse(url).path.startswith(path):
+                        disallow_all = True
+
+            if disallow_all:
+                logger.warning(
+                    f"robots.txt disallows crawling of {url}"
+                )
+                return False
+
+            return True
+        except Exception:
+            # If we can't fetch robots.txt, allow crawling
+            return True
+
     def _make_request(self, url: str, params: dict = None):
-        """Make an HTTP request with retries and timeout."""
+        """Make an HTTP request with retries, timeout, and SSL handling.
+
+        Returns (response, response_time_ms) on success.
+        Returns None if all retries exhausted.
+        """
         from src.registry.source_registry import SourceRegistry
+
+        # Check robots.txt before making the request
+        if not self._check_robots_txt(url):
+            logger.warning(f"robots.txt disallows crawling of {url}")
+            return None
 
         for attempt in range(self.max_retries):
             try:
@@ -110,11 +181,18 @@ class BaseCollector(ABC):
                     collection_status="ok" if response.status_code < 400 else "error",
                 )
 
+                # Permanent failures — do not retry
+                if response.status_code in self.NO_RETRY_STATUS_CODES:
+                    logger.warning(
+                        f"HTTP {response.status_code} from {url} — "
+                        "permanent failure, not retrying"
+                    )
+                    return response, response_time_ms
+
                 if response.status_code == 200:
                     return response, response_time_ms
                 else:
-                    # Return non-200 responses too - they may contain useful content
-                    # after redirects (e.g., 301/302 to error pages with content)
+                    # Return non-200 responses too (e.g., 301/302 redirects)
                     logger.warning(
                         f"HTTP {response.status_code} from {url} "
                         f"(attempt {attempt + 1}) - returning response anyway"
@@ -127,6 +205,12 @@ class BaseCollector(ABC):
                     backoff = self.backoff_factor ** attempt
                     time.sleep(backoff)
                 continue
+            except httpx.ConnectError as e:
+                # SSL/certificate errors are usually permanent
+                logger.error(
+                    f"SSL/connection error requesting {url}: {e} — not retrying"
+                )
+                return None
             except httpx.RequestError as e:
                 logger.warning(f"Request error for {url} (attempt {attempt + 1}): {e}")
                 if attempt < self.max_retries - 1:

@@ -122,9 +122,9 @@ def collect_all(social: bool = False) -> list:
             source_items = _safe_collect(f"{source.source_id} ({source.source_type})", source)
             items.extend(source_items)
 
-        # Social media collectors disabled for Phase 1 —
-        # re-enable once RSS/website collection is stable
-        if False and social or getattr(settings, 'social_scrapers_enabled', False):
+        # Social media collectors controlled by explicit configuration flag
+        social_enabled = bool(social or getattr(settings, 'social_scrapers_enabled', False))
+        if social_enabled:
             logger.info("  Collecting social media...")
             items += _safe_collect("Twitter", None, "twitter")
             items += _safe_collect("Instagram", None, "instagram")

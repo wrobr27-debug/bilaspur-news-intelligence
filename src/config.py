@@ -50,6 +50,9 @@ class Settings(BaseSettings):
     twitter_handle: str = Field(default="", alias="TWITTER_HANDLE")
     instagram_username: str = Field(default="", alias="INSTAGRAM_USERNAME")
     instagram_password: str = Field(default="", alias="INSTAGRAM_PASSWORD")
+    instagram_graph_api_token: str = Field(default="", alias="INSTAGRAM_GRAPH_API_TOKEN")
+    facebook_graph_api_token: str = Field(default="", alias="FACEBOOK_GRAPH_API_TOKEN")
+    x_api_bearer_token: str = Field(default="", alias="X_API_BEARER_TOKEN")
     social_scrapers_enabled: bool = Field(default=False, alias="SOCIAL_SCRAPERS_ENABLED")
 
     # HTTP timeout settings

@@ -37,6 +37,9 @@ jobs:
       TWITTER_HANDLE: ${{ secrets.TWITTER_HANDLE }}
       INSTAGRAM_USERNAME: ${{ secrets.INSTAGRAM_USERNAME }}
       INSTAGRAM_PASSWORD: ${{ secrets.INSTAGRAM_PASSWORD }}
+      INSTAGRAM_GRAPH_API_TOKEN: ${{ secrets.INSTAGRAM_GRAPH_API_TOKEN }}
+      FACEBOOK_GRAPH_API_TOKEN: ${{ secrets.FACEBOOK_GRAPH_API_TOKEN }}
+      X_API_BEARER_TOKEN: ${{ secrets.X_API_BEARER_TOKEN }}
       LOG_LEVEL: INFO
       COLLECTION_TIMEZONE: Asia/Kolkata
 
@@ -98,31 +101,61 @@ jobs:
       - name: Execute collection pipeline
         env:
           COLLECT_SOCIAL: ${{ inputs.social }}
+          INSTAGRAM_GRAPH_API_TOKEN: ${{ secrets.INSTAGRAM_GRAPH_API_TOKEN }}
+          FACEBOOK_GRAPH_API_TOKEN: ${{ secrets.FACEBOOK_GRAPH_API_TOKEN }}
+          X_API_BEARER_TOKEN: ${{ secrets.X_API_BEARER_TOKEN }}
         run: |
+          # Determine social flag: only enable if user requested AND credentials exist
+          SOCIAL_ENABLED="false"
+          if [ "${{ inputs.social }}" = "true" ]; then
+            # Check if at least one social credential is configured
+            if [ -n "${INSTAGRAM_GRAPH_API_TOKEN}" ] || [ -n "${FACEBOOK_GRAPH_API_TOKEN}" ] || [ -n "${X_API_BEARER_TOKEN}" ] || [ -n "${TWITTER_HANDLE}" ]; then
+              SOCIAL_ENABLED="true"
+            else
+              echo "WARNING: Social collection requested but no social credentials found. Disabling social collection."
+            fi
+          fi
+
           if [ -n "${{ inputs.source_id }}" ]; then
             python -m src.main collect --source "${{ inputs.source_id }}"
           else
-            if [ "${{ inputs.social }}" = "true" ]; then
+            if [ "$SOCIAL_ENABLED" = "true" ]; then
               python -m src.main collect --social
             else
               python -m src.main collect
             fi
           fi
 
-      - name: Build static dashboard
-        run: python src/build_static.py
-
-      - name: Export dashboard data
-        run: python src/export_dashboard_data.py
-
-      - name: Commit and Push database changes
+      - name: Generate collection report
+        if: always()
         run: |
-          git config --global user.name "github-actions[bot]"
-          git config --global user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/ || true
-          git add docs/ || true
-          git commit -m "Auto-update news data [skip ci]" || echo "No changes to commit"
-          git push origin master
+          cat > collection-report.txt << 'REPORTEOF'
+          Bilaspur News Intelligence - Collection Report
+          ===============================================
+          Run ID: ${{ github.run_id }}
+          Workflow: ${{ github.workflow }}
+          Trigger: ${{ github.event_name }}
+          Branch: ${{ github.ref }}
+          Commit: ${{ github.sha }}
+          Timestamp: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
+
+          Social Collection Requested: ${{ inputs.social }}
+          Social Credentials Configured:
+            Instagram Graph API: ${{ secrets.INSTAGRAM_GRAPH_API_TOKEN != '' && 'yes' || 'no' }}
+            Facebook Graph API: ${{ secrets.FACEBOOK_GRAPH_API_TOKEN != '' && 'yes' || 'no' }}
+            X API Bearer Token: ${{ secrets.X_API_BEARER_TOKEN != '' && 'yes' || 'no' }}
+            Twitter Handle: ${{ secrets.TWITTER_HANDLE != '' && 'yes' || 'no' }}
+
+          See collection-logs-${{ github.run_id }} for detailed logs.
+          REPORTEOF
+
+      - name: Upload collection report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: collection-report-${{ github.run_id }}
+          path: collection-report.txt
+          retention-days: 7
 
       - name: Upload execution log
         if: always()

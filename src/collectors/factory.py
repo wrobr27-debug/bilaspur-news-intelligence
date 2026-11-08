@@ -21,6 +21,8 @@ from src.collectors.rss import RSSCollector
 from src.collectors.website import WebsiteCollector, GovtWebsiteCollector
 from src.collectors.youtube import YouTubeCollector
 from src.collectors.instagram import InstagramCollector
+from src.collectors.facebook import FacebookCollector
+from src.collectors.x import XCollector
 
 _REGISTERED = False
 
@@ -35,6 +37,8 @@ def _ensure_registered():
         _COLLECTOR_MAP["manual"] = WebsiteCollector
         _COLLECTOR_MAP["api"] = YouTubeCollector
         _COLLECTOR_MAP["instagram"] = InstagramCollector
+        _COLLECTOR_MAP["facebook"] = FacebookCollector
+        _COLLECTOR_MAP["x"] = XCollector
         _REGISTERED = True
 
 
