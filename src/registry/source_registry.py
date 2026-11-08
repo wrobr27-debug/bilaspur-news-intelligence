@@ -256,7 +256,7 @@ class SourceRegistry:
         cutoff = datetime.now(timezone.utc) - timedelta(days=ttl_days)
         existing = (
             db.query(CollectedItems)
-            .filter(CollectedItems.source == source)
+            .filter(CollectedItems.source_id == source)
             .filter(CollectedItems.original_url == unique_id)
             .filter(CollectedItems.collected_at >= cutoff)
             .first()
@@ -277,7 +277,7 @@ class SourceRegistry:
         from src.database.models import CollectedItems
         existing = (
             db.query(CollectedItems)
-            .filter(CollectedItems.source == source)
+            .filter(CollectedItems.source_id == source)
             .filter(CollectedItems.original_url == unique_id)
             .first()
         )

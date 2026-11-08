@@ -10,8 +10,8 @@ import re
 import logging
 import threading
 
-from src.database.base import SessionLocal, engine
-from src.database.models import Sources, CollectedItems, SourceHealth
+from src.database.base import get_session, SessionLocal, engine
+from src.database.models import Sources, CollectedItems, CollectionRuns, SourceHealth
 from src.collectors.factory import get_collector
 from src.registry.source_registry import SourceRegistry
 from src.config import settings
@@ -29,31 +29,118 @@ STOP_WORDS = {
 }
 
 
-def _safe_collect(name: str, source, db) -> list:
+def _make_url(item: CollectedItems) -> str:
+    """Safely get URL from a CollectedItems instance, handling detached instances."""
+    try:
+        return item.original_url or item.canonical_url or item.title or ""
+    except Exception:
+        # Detached instance - fall back to title
+        return item.title or "" if hasattr(item, 'title') else ""
+
+
+def _safe_collect(name: str, source, db, collector_method: str = None) -> list:
     """Safely collect from a single source, catching exceptions.
 
     Enforces a per-source timeout so one slow/hanging source
     (e.g., a JS-heavy government site waiting on Playwright)
     doesn't kill the whole pipeline.
+
+    Args:
+        name: Source name for logging
+        source: Source object (can be None for social media)
+        db: Database session
+        collector_method: Optional collection method string (e.g., 'twitter', 'instagram')
+                       If None and source is not None, uses source.collection_method
     """
+    from src.collectors.base import BaseCollector
+
     result_container = {}
 
     def _run():
         try:
-            collector = get_collector(source, db)
-            if not collector:
+            if source is not None:
+                collector = get_collector(source, db)
+                if not collector:
+                    result_container["items"] = []
+                    result_container["error"] = None
+                    result_container["items_found"] = 0
+                    result_container["items_inserted"] = 0
+                    return
+                result = collector.collect()
+                result_container["items"] = (
+                    result.items if hasattr(result, "items") and result.items else []
+                )
+                result_container["error"] = result.error
+                result_container["items_found"] = result.items_found
+                result_container["items_inserted"] = result.items_inserted
+            elif collector_method == "twitter":
+                # Collect from Twitter using the factory pattern
+                try:
+                    from src.database.models import Sources
+                    dummy_source = Sources(
+                        source_id="twitter",
+                        source_name="Twitter",
+                        source_type="social_media",
+                        source_url="https://twitter.com",
+                        collection_method="twitter",
+                        active=True,
+                    )
+                    collector = get_collector(dummy_source, db)
+                    if collector:
+                        result = collector.collect()
+                        result_container["items"] = (
+                            result.items if hasattr(result, "items") and result.items else []
+                        )
+                        result_container["error"] = result.error
+                        result_container["items_found"] = result.items_found
+                        result_container["items_inserted"] = result.items_inserted
+                    else:
+                        result_container["items"] = []
+                        result_container["error"] = "No collector for twitter method"
+                        result_container["items_found"] = 0
+                        result_container["items_inserted"] = 0
+                except Exception as e:
+                    result_container["items"] = []
+                    result_container["error"] = str(e)
+                    result_container["items_found"] = 0
+                    result_container["items_inserted"] = 0
+            elif collector_method == "instagram":
+                # Use the existing InstagramCollector via factory
+                try:
+                    from src.database.models import Sources
+                    dummy_source = Sources(
+                        source_id="instagram",
+                        source_name="Instagram",
+                        source_type="social_media",
+                        source_url="https://instagram.com",
+                        collection_method="instagram",
+                        active=True,
+                    )
+                    collector = get_collector(dummy_source, db)
+                    if collector:
+                        result = collector.collect()
+                        result_container["items"] = (
+                            result.items if hasattr(result, "items") and result.items else []
+                        )
+                        result_container["error"] = result.error
+                        result_container["items_found"] = result.items_found
+                        result_container["items_inserted"] = result.items_inserted
+                    else:
+                        result_container["items"] = []
+                        result_container["error"] = "No collector for instagram method"
+                        result_container["items_found"] = 0
+                        result_container["items_inserted"] = 0
+                except Exception as e:
+                    result_container["items"] = []
+                    result_container["error"] = str(e)
+                    result_container["items_found"] = 0
+                    result_container["items_inserted"] = 0
+            else:
                 result_container["items"] = []
                 result_container["error"] = None
                 result_container["items_found"] = 0
                 result_container["items_inserted"] = 0
-                return
-            result = collector.collect()
-            result_container["items"] = (
-                result.items if hasattr(result, "items") and result.items else []
-            )
-            result_container["error"] = result.error
-            result_container["items_found"] = result.items_found
-            result_container["items_inserted"] = result.items_inserted
+
         except Exception as e:
             result_container["items"] = []
             result_container["error"] = str(e)
@@ -97,8 +184,8 @@ def collect_all(social: bool = False) -> list:
 
         if social or getattr(settings, 'social_scrapers_enabled', False):
             logger.info("  Collecting social media...")
-            items += _safe_collect("Twitter", None, db, _scrape_twitter)
-            items += _safe_collect("Instagram", None, db, _scrape_instagram)
+            items += _safe_collect("Twitter", None, db, "twitter")
+            items += _safe_collect("Instagram", None, db, "instagram")
 
     finally:
         db.close()
@@ -106,50 +193,20 @@ def collect_all(social: bool = False) -> list:
     return items
 
 
-def _scrape_twitter(db):
-    """Scrape Twitter for news."""
-    from src.sources.twitter_scraper import scrape_all
-    return scrape_all(settings.twitter_handle)
-
-
-def _scrape_instagram(db):
-    """Scrape Instagram for news."""
-    from src.sources.instagram_scraper import scrape_all
-    return scrape_all()
-
-
-def tokenize(text: str) -> list:
-    """Tokenize text for deduplication."""
-    words = re.findall(r'[a-zA-Z0-9\u0900-\u097F]+', text.lower())
-    return [w for w in words if w not in STOP_WORDS]
-
-
-def cosine_similarity(vec1: dict, vec2: dict) -> float:
-    """Calculate cosine similarity between two word frequency vectors."""
-    intersection = set(vec1.keys()) & set(vec2.keys())
-    numerator = sum(vec1[w] * vec2[w] for w in intersection)
-
-    sum1 = sum(val ** 2 for val in vec1.values())
-    sum2 = sum(val ** 2 for val in vec2.values())
-
-    denominator = math.sqrt(sum1) * math.sqrt(sum2)
-    if not denominator:
-        return 0.0
-    return numerator / denominator
-
-
 def deduplicate_semantic(items: list, threshold: float = 0.4) -> list:
     """Remove semantically similar items using cosine similarity."""
     if len(items) <= 1:
         return items
 
-    tokenized_docs = [tokenize(f"{item.title} {item.summary or ''}") for item in items]
+    tokenized_docs = [re.findall(r'[a-zA-Z0-9\u0900-\u097F]+', (item.title or "").lower()) for item in items]
 
     # Calculate TF vectors
     tf_vectors = []
     for doc in tokenized_docs:
         tf = {}
         for word in doc:
+            if word in STOP_WORDS:
+                continue
             tf[word] = tf.get(word, 0) + 1
         tf_vectors.append(tf)
 
@@ -165,12 +222,26 @@ def deduplicate_semantic(items: list, threshold: float = 0.4) -> list:
         for j in range(i + 1, num_docs):
             if j in skipped:
                 continue
-            sim = cosine_similarity(tf_vectors[i], tf_vectors[j])
+            sim = _cosine_similarity(tf_vectors[i], tf_vectors[j])
             if sim >= threshold:
                 skipped.add(j)
                 logger.info(f"Skipping semantic duplicate:\n  Keep: [{items[i].source}] {_safe(items[i].title)}\n  Skip: [{items[j].source}] {_safe(items[j].title)} (Similarity: {sim:.2f})")
 
     return [items[i] for i in keep_indices]
+
+
+def _cosine_similarity(vec1: dict, vec2: dict) -> float:
+    """Calculate cosine similarity between two word frequency vectors."""
+    intersection = set(vec1.keys()) & set(vec2.keys())
+    numerator = sum(vec1[w] * vec2[w] for w in intersection)
+
+    sum1 = sum(val ** 2 for val in vec1.values())
+    sum2 = sum(val ** 2 for val in vec2.values())
+
+    denominator = math.sqrt(sum1) * math.sqrt(sum2)
+    if not denominator:
+        return 0.0
+    return numerator / denominator
 
 
 def deduplicate(items: list) -> list:
@@ -180,9 +251,14 @@ def deduplicate(items: list) -> list:
     db = SessionLocal()
     try:
         for item in items:
-            unique_id = item.url or item.title
-            if not SourceRegistry.is_duplicate(db, item.source, unique_id, ttl_days=30):
-                dup_key = (item.source, unique_id)
+            # Safely get URL - handle detached instances
+            unique_id = _make_url(item)
+            if not unique_id:
+                # Fallback: use title truncated
+                unique_id = (item.title[:100] if item.title else "unknown")[:100]
+
+            if not SourceRegistry.is_duplicate(db, str(item.source_id), unique_id, ttl_days=30):
+                dup_key = (item.source_id, unique_id)
                 if dup_key not in seen_keys:
                     seen_keys.add(dup_key)
                     candidates.append(item)
@@ -190,11 +266,11 @@ def deduplicate(items: list) -> list:
         unique_items = deduplicate_semantic(candidates, threshold=0.4)
 
         for item in unique_items:
-            unique_id = item.url or item.title
+            unique_id = _make_url(item)
             try:
                 SourceRegistry.mark_seen(
-                    db, item.source, unique_id, item.title,
-                    item.url, item.published_at, item.image_url
+                    db, str(item.source_id), unique_id, item.title,
+                    _make_url(item), item.published_at, item.image_url
                 )
             except Exception as e:
                 logger.warning(f"Failed to mark seen: {e}")
