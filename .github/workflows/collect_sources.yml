@@ -44,7 +44,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -122,7 +122,7 @@ jobs:
           git add data/ || true
           git add docs/ || true
           git commit -m "Auto-update news data [skip ci]" || echo "No changes to commit"
-          git push origin main
+          git push origin master
 
       - name: Upload execution log
         if: always()

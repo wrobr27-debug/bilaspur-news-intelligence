@@ -373,52 +373,52 @@ def generate_html(items, sources, categories):
 </body>
 </html>"""
 
-        # Generate category options
-        category_options = ""
-        for cat in sorted(categories.keys()):
-            category_options += f'<option value="{cat}">{cat.title()}</option>\n'
+    # Generate category options
+    category_options = ""
+    for cat in sorted(categories.keys()):
+        category_options += f'<option value="{cat}">{cat.title()}</option>\n'
 
-        # Generate news cards
-        news_cards = ""
-        if items:
-            for item in items:
-                image_url = item.image_url or "https://via.placeholder.com/350x200?text=No+Image"
-                news_cards += f'''
-                <div class="news-card" data-category="{item.category or 'news'}">
-                    <div class="news-card-image">
-                        <img src="{image_url}" alt="{item.title}" onerror="this.src='https://via.placeholder.com/350x200?text=No+Image'">
-                    </div>
-                    <div class="news-card-content">
-                        <div class="news-card-meta">
-                            <span class="news-card-source">{item.source or 'Unknown'}</span>
-                            <span class="news-card-time">{str(item.collected_at)[:16] if item.collected_at else 'Unknown'}</span>
-                        </div>
-                        <div class="category-badge">{item.category or 'News'}</div>
-                        <h3 class="news-card-title">{item.title or 'No Title'}</h3>
-                        <p class="news-card-summary">{item.summary or 'No summary available.'}</p>
-                        <a href="{item.original_url or '#'}" class="news-card-link" target="_blank">Read Full Story &rarr;</a>
-                    </div>
+    # Generate news cards
+    news_cards = ""
+    if items:
+        for item in items:
+            image_url = item.image_url or "https://via.placeholder.com/350x200?text=No+Image"
+            news_cards += f'''
+            <div class="news-card" data-category="{item.category or 'news'}">
+                <div class="news-card-image">
+                    <img src="{image_url}" alt="{item.title}" onerror="this.src='https://via.placeholder.com/350x200?text=No+Image'">
                 </div>
-                '''
-        else:
-            news_cards = '''
-            <div class="no-news">
-                <i class="fas fa-newspaper"></i>
-                <h3>No news available yet.</h3>
-                <p>Run the collection pipeline to fetch news from active sources.</p>
+                <div class="news-card-content">
+                    <div class="news-card-meta">
+                        <span class="news-card-source">{item.source or 'Unknown'}</span>
+                        <span class="news-card-time">{str(item.collected_at)[:16] if item.collected_at else 'Unknown'}</span>
+                    </div>
+                    <div class="category-badge">{item.category or 'News'}</div>
+                    <h3 class="news-card-title">{item.title or 'No Title'}</h3>
+                    <p class="news-card-summary">{item.summary or 'No summary available.'}</p>
+                    <a href="{item.original_url or '#'}" class="news-card-link" target="_blank">Read Full Story &rarr;</a>
+                </div>
             </div>
             '''
+    else:
+        news_cards = '''
+        <div class="no-news">
+            <i class="fas fa-newspaper"></i>
+            <h3>No news available yet.</h3>
+            <p>Run the collection pipeline to fetch news from active sources.</p>
+        </div>
+        '''
 
-        html = html.format(
-            total_items=len(items),
-            active_sources=len([s for s in sources if s.active]),
-            total_sources=len(sources),
-            last_updated=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            category_options=category_options,
-            news_cards=news_cards,
-        )
+    html = html.format(
+        total_items=len(items),
+        active_sources=len([s for s in sources if s.active]),
+        total_sources=len(sources),
+        last_updated=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        category_options=category_options,
+        news_cards=news_cards,
+    )
 
-        return html
+    return html
 
 
 if __name__ == "__main__":

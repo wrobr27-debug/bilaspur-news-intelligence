@@ -249,15 +249,15 @@ class SourceRegistry:
         return db_source
 
     @staticmethod
-    def is_duplicate(db: Session, source: str, unique_id: str, ttl_days: int = 30) -> bool:
+    def is_duplicate(db: Session, source_db_id: int, unique_id: str, ttl_days: int = 30) -> bool:
         """Check if an item from this source with this unique_id was seen recently."""
         from src.database.models import CollectedItems
         from datetime import timedelta
         cutoff = datetime.now(timezone.utc) - timedelta(days=ttl_days)
         existing = (
             db.query(CollectedItems)
-            .filter(CollectedItems.source_id == source)
-            .filter(CollectedItems.original_url == unique_id)
+            .filter(CollectedItems.source_id == source_db_id)
+            .filter(CollectedItems.canonical_url == unique_id)
             .filter(CollectedItems.collected_at >= cutoff)
             .first()
         )
@@ -266,7 +266,7 @@ class SourceRegistry:
     @staticmethod
     def mark_seen(
         db: Session,
-        source: str,
+        source_db_id: int,
         unique_id: str,
         title: str,
         url: str = None,
@@ -277,23 +277,24 @@ class SourceRegistry:
         from src.database.models import CollectedItems
         existing = (
             db.query(CollectedItems)
-            .filter(CollectedItems.source_id == source)
-            .filter(CollectedItems.original_url == unique_id)
+            .filter(CollectedItems.source_id == source_db_id)
+            .filter(CollectedItems.canonical_url == unique_id)
             .first()
         )
         if not existing:
             item = CollectedItems(
-                source=source,
+                source_id=source_db_id,
                 title=title,
                 original_url=url or unique_id,
-                canonical_url=url or unique_id,
+                canonical_url=unique_id,
                 description="",
                 content_snippet="",
                 author="",
                 published_at=published_at,
                 language="en",
-                item_type="news",
+                item_type="article",
                 media_type="text",
+                collection_status="collected",
                 image_url=image_url or "",
                 video_url="",
                 raw_metadata={},

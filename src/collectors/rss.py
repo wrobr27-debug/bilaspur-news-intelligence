@@ -41,8 +41,23 @@ class RSSCollector(BaseCollector):
         items_duplicate = 0
         error = None
 
-        # Parse the feed
-        feed = feedparser.parse(self.source.rss_url)
+        # Fetch the feed using shared HTTP request logic
+        response_data = self._make_request(self.source.rss_url)
+        if not response_data:
+            return CollectionResult(
+                source_id=self.source.source_id,
+                error="RSS request failed",
+                collection_status="error",
+            )
+        response, response_time_ms = response_data
+        if response.status_code != 200:
+            return CollectionResult(
+                source_id=self.source.source_id,
+                error=f"RSS HTTP status: {response.status_code}",
+                http_status=response.status_code,
+                collection_status="error",
+            )
+        feed = feedparser.parse(response.content)
 
         if not feed.entries:
             logger.warning(f"No entries found in RSS feed: {self.source.rss_url}")
@@ -162,7 +177,7 @@ class RSSCollector(BaseCollector):
             items_inserted=items_inserted,
             items_duplicate=items_duplicate,
             error=error,
-            collection_status="ok" if items_inserted > 0 else "ok",
+            collection_status="ok" if not error else "error",
         )
 
     def _extract_raw_metadata(self, entry) -> dict:

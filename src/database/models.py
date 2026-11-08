@@ -177,12 +177,16 @@ class CollectedItems(Base):
         default="collected",
         comment="collected|duplicate|skipped|error",
     )
+    category = Column(String(100), default="uncategorized", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
         Index("ix_collected_items_content_hash", "content_hash"),
         Index("ix_collected_items_published_at", "published_at"),
     )
+
+    # Relationship to source
+    source = relationship("Sources")
 
     @property
     def is_duplicate(self) -> bool:

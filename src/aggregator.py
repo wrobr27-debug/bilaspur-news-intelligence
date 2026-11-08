@@ -32,13 +32,13 @@ STOP_WORDS = {
 def _make_url(item: CollectedItems) -> str:
     """Safely get URL from a CollectedItems instance, handling detached instances."""
     try:
-        return item.original_url or item.canonical_url or item.title or ""
+        return item.canonical_url or item.original_url or item.title or ""
     except Exception:
         # Detached instance - fall back to title
         return item.title or "" if hasattr(item, 'title') else ""
 
 
-def _safe_collect(name: str, source, db, collector_method: str = None) -> list:
+def _safe_collect(name: str, source, collector_method: str = None) -> list:
     """Safely collect from a single source, catching exceptions.
 
     Enforces a per-source timeout so one slow/hanging source
@@ -48,18 +48,19 @@ def _safe_collect(name: str, source, db, collector_method: str = None) -> list:
     Args:
         name: Source name for logging
         source: Source object (can be None for social media)
-        db: Database session
         collector_method: Optional collection method string (e.g., 'twitter', 'instagram')
                        If None and source is not None, uses source.collection_method
     """
     from src.collectors.base import BaseCollector
+    from src.database.base import SessionLocal
 
     result_container = {}
 
     def _run():
+        worker_db = SessionLocal()
         try:
             if source is not None:
-                collector = get_collector(source, db)
+                collector = get_collector(source, worker_db)
                 if not collector:
                     result_container["items"] = []
                     result_container["error"] = None
@@ -73,79 +74,18 @@ def _safe_collect(name: str, source, db, collector_method: str = None) -> list:
                 result_container["error"] = result.error
                 result_container["items_found"] = result.items_found
                 result_container["items_inserted"] = result.items_inserted
-            elif collector_method == "twitter":
-                # Collect from Twitter using the factory pattern
-                try:
-                    from src.database.models import Sources
-                    dummy_source = Sources(
-                        source_id="twitter",
-                        source_name="Twitter",
-                        source_type="social_media",
-                        source_url="https://twitter.com",
-                        collection_method="twitter",
-                        active=True,
-                    )
-                    collector = get_collector(dummy_source, db)
-                    if collector:
-                        result = collector.collect()
-                        result_container["items"] = (
-                            result.items if hasattr(result, "items") and result.items else []
-                        )
-                        result_container["error"] = result.error
-                        result_container["items_found"] = result.items_found
-                        result_container["items_inserted"] = result.items_inserted
-                    else:
-                        result_container["items"] = []
-                        result_container["error"] = "No collector for twitter method"
-                        result_container["items_found"] = 0
-                        result_container["items_inserted"] = 0
-                except Exception as e:
-                    result_container["items"] = []
-                    result_container["error"] = str(e)
-                    result_container["items_found"] = 0
-                    result_container["items_inserted"] = 0
-            elif collector_method == "instagram":
-                # Use the existing InstagramCollector via factory
-                try:
-                    from src.database.models import Sources
-                    dummy_source = Sources(
-                        source_id="instagram",
-                        source_name="Instagram",
-                        source_type="social_media",
-                        source_url="https://instagram.com",
-                        collection_method="instagram",
-                        active=True,
-                    )
-                    collector = get_collector(dummy_source, db)
-                    if collector:
-                        result = collector.collect()
-                        result_container["items"] = (
-                            result.items if hasattr(result, "items") and result.items else []
-                        )
-                        result_container["error"] = result.error
-                        result_container["items_found"] = result.items_found
-                        result_container["items_inserted"] = result.items_inserted
-                    else:
-                        result_container["items"] = []
-                        result_container["error"] = "No collector for instagram method"
-                        result_container["items_found"] = 0
-                        result_container["items_inserted"] = 0
-                except Exception as e:
-                    result_container["items"] = []
-                    result_container["error"] = str(e)
-                    result_container["items_found"] = 0
-                    result_container["items_inserted"] = 0
             else:
                 result_container["items"] = []
                 result_container["error"] = None
                 result_container["items_found"] = 0
                 result_container["items_inserted"] = 0
-
         except Exception as e:
             result_container["items"] = []
             result_container["error"] = str(e)
             result_container["items_found"] = 0
             result_container["items_inserted"] = 0
+        finally:
+            worker_db.close()
 
     thread = threading.Thread(target=_run, daemon=True)
     thread.start()
@@ -179,13 +119,15 @@ def collect_all(social: bool = False) -> list:
         logger.info(f"Collecting from {len(sources)} active sources...")
 
         for source in sources:
-            source_items = _safe_collect(f"{source.source_id} ({source.source_type})", source, db)
+            source_items = _safe_collect(f"{source.source_id} ({source.source_type})", source)
             items.extend(source_items)
 
-        if social or getattr(settings, 'social_scrapers_enabled', False):
+        # Social media collectors disabled for Phase 1 —
+        # re-enable once RSS/website collection is stable
+        if False and social or getattr(settings, 'social_scrapers_enabled', False):
             logger.info("  Collecting social media...")
-            items += _safe_collect("Twitter", None, db, "twitter")
-            items += _safe_collect("Instagram", None, db, "instagram")
+            items += _safe_collect("Twitter", None, "twitter")
+            items += _safe_collect("Instagram", None, "instagram")
 
     finally:
         db.close()
@@ -257,7 +199,7 @@ def deduplicate(items: list) -> list:
                 # Fallback: use title truncated
                 unique_id = (item.title[:100] if item.title else "unknown")[:100]
 
-            if not SourceRegistry.is_duplicate(db, str(item.source_id), unique_id, ttl_days=30):
+            if not SourceRegistry.is_duplicate(db, item.source_id, unique_id, ttl_days=30):
                 dup_key = (item.source_id, unique_id)
                 if dup_key not in seen_keys:
                     seen_keys.add(dup_key)
@@ -269,7 +211,7 @@ def deduplicate(items: list) -> list:
             unique_id = _make_url(item)
             try:
                 SourceRegistry.mark_seen(
-                    db, str(item.source_id), unique_id, item.title,
+                    db, item.source_id, unique_id, item.title,
                     _make_url(item), item.published_at, item.image_url
                 )
             except Exception as e:

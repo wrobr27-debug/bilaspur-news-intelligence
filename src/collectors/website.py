@@ -9,6 +9,7 @@ Falls back to Playwright browser automation for JS-heavy sites
 
 from typing import List, Optional
 from datetime import datetime, timezone
+from urllib.parse import urljoin, urlparse
 from src.collectors.base import BaseCollector, CollectionResult
 from src.database.models import Sources, CollectedItems
 from bs4 import BeautifulSoup
@@ -255,8 +256,9 @@ class WebsiteCollector(BaseCollector):
             if href.startswith("javascript:") or href == "#":
                 continue
 
-            full_url = href if href.startswith("http") else None
-            if not full_url:
+            full_url = urljoin(self.source.source_url, href)
+            parsed = urlparse(full_url)
+            if parsed.scheme not in ("http", "https"):
                 continue
 
             if full_url in seen_urls:
@@ -292,8 +294,9 @@ class WebsiteCollector(BaseCollector):
             if href.startswith("javascript:") or href == "#":
                 continue
 
-            full_url = href if href.startswith("http") else None
-            if not full_url:
+            full_url = urljoin(self.source.source_url, href)
+            parsed = urlparse(full_url)
+            if parsed.scheme not in ("http", "https"):
                 continue
 
             if full_url in seen_urls:
@@ -375,12 +378,9 @@ class GovtWebsiteCollector(WebsiteCollector):
             if href.startswith("javascript:") or href == "#":
                 continue
 
-            full_url = href if href.startswith("http") else None
-            if not full_url:
-                continue
-
-            # Resolve relative URLs
-            if not full_url.startswith("http"):
+            full_url = urljoin(self.source.source_url, href)
+            parsed = urlparse(full_url)
+            if parsed.scheme not in ("http", "https"):
                 continue
 
             if full_url in seen_urls:
@@ -394,7 +394,7 @@ class GovtWebsiteCollector(WebsiteCollector):
                     type("NewsItemData", (), {"title": text[:200], "url": full_url})()
                 )
             # Also include links with significant govt-related text (len > 20)
-            elif len(text) > 20 and not full_url.startswith("http://127.0.0") and not full_url.startswith("http://localhost"):
+            elif len(text) > 20:
                 # Include but mark for review
                 links.append(
                     type("NewsItemData", (), {"title": text[:200], "url": full_url})()
